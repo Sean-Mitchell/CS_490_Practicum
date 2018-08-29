@@ -3,12 +3,24 @@ import os
 import string as strng
 import pandas as pd
 import numpy as np
-#from sklearn.cross_validation import train_test_split
+from sklearn.cross_validation import train_test_split
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction import stop_words
 from sklearn import svm
 from sklearn import metrics
 from sklearn.model_selection import KFold, StratifiedKFold
+
+
+#Thank you Internet
+#https://stackoverflow.com/questions/16869990/how-to-convert-from-boolean-array-to-int-array-in-python
+def boolstr_to_floatstr(v):
+    if v == 'True':
+        return '1'
+    elif v == 'False':
+        return '0'
+    else:
+        return '0'
+
 
 # Read in all the txt Files
 def LoopThroughDocuments(filePath, folderName):
@@ -60,6 +72,7 @@ def LoopThroughDocuments(filePath, folderName):
             dataframe = pd.DataFrame.from_dict(textObject)
         else:
             dataframe = pd.concat([dataframe, pd.DataFrame.from_dict(textObject)], ignore_index=True, sort=False)
+            
     dataframe.reset_index(drop = False)
     for index, row in dataframe.iterrows():
         dataframe.iloc[index]['NoPunctuation'] = ''.join(ch for ch in row['RawText'] if ch not in strng.punctuation)
@@ -71,77 +84,128 @@ def LoopThroughDocuments(filePath, folderName):
 # Split the dataframes into the final data frame that will be used
 # This includes matching up the summary sentences, vectorizing, and tfidf as well as assigning 
 def ModifyRawData(rawDataFrame, rawEmails, rawSummaries):
-    print('nice')
-    vect = CountVectorizer()
     
-    print(rawEmails.head())
+    #print(rawEmails.head())
     #print(rawSummaries.head())
+    #print(rawEmails.iloc[0]['NoPunctuation'])
+    #print(rawEmails.shape)    
+    #countVectorText = vect.fit_transform(rawEmails['NoPunctuation'])
+    #print(countVectorText.shape)
     
-    #nopunc = [char for char in rawEmails if char not in str.punctuation]
+    # Create Y column (this is what we will be working to get using the SVM later on).  It's the unknown we want to solve for later on    
     rawEmails.reset_index(drop = False)
-    print(rawEmails.iloc[0]['NoPunctuation'])
-    print(rawEmails.shape)
-    
-    countVectorText = vect.fit_transform(rawEmails['NoPunctuation'])
-    print(countVectorText.shape)
-    
-    # Create Y column (this is what we will be working to get using the SVM later on).  It's the unknown we want to solve for later on
-    
     summaryList = rawEmails['RawText'].isin(rawSummaries['RawText'])
     
-    print(summaryList)
+    #print(summaryList)
+    print(MachineLearningPart(rawEmails, summaryList))
     
     #return dataframe    
 
 #This should hold all the machine learning things
-def MachineLearningPart(dataFrame):
+def MachineLearningPart(Emails, IsGoodSentenceList):
     vect = CountVectorizer()
     
     #Assign Test and Train parts
-    descriptionX = dataFrame['Brief Description']
-    categoryY = dataFrame['Category']
+    emails = Emails['NoPunctuation']
+    goodSentences = IsGoodSentenceList
     
     #Create Series that the countVectorizer can use to create training and testing sets
-    Description_train, Description_test, category_train, category_test = train_test_split(descriptionX, categoryY, random_state=1)
-    
-    #Double Check shapes
-    # print(Description_train.shape)
-    # print(Description_test.shape)
-    # print(category_train.shape)
-    # print(category_test.shape)
-    
+    emails_train, emails_test, goodSentences_train, goodSentences_test = train_test_split(emails, goodSentences, random_state=1)
     
     # fit and transform training into vector matrix
-    Description_train_dtm = vect.fit_transform(Description_train)
+    emails_train_dtm = vect.fit_transform(emails_train)
 
     # transform test into test matrix
-    Description_test_dtm = vect.transform(Description_test)
+    emails_test_dtm = vect.transform(emails_test)
     
+    
+    #Double Check shapes
+    # print(emails_train.shape)
+    # print(emails_test.shape)
+    # print(goodSentences_train.shape)
+    # print(goodSentences_test.shape)
+    
+    clf = svm.SVC()
+    clf.fit(emails_train_dtm, goodSentences_train)    
+    #Set up svc stuff (will modify into loop later)
+    svm.SVC(C=1.0, cache_size=400, class_weight=None, coef0=0.0,
+    decision_function_shape='ovr', degree=3, gamma='auto', kernel='rbf',
+    max_iter=-1, probability=False, random_state=True, shrinking=True,
+    tol=0.001, verbose=False)
+    
+    emails_results = clf.predict(emails_test_dtm)
+    
+    #print the accuracy is
+    print(metrics.accuracy_score(goodSentences_test, emails_results))    
+    #This is a thing.  I am still uncertain how to use it
+    print(metrics.confusion_matrix(goodSentences_test, emails_results))
+    
+    accuracy_Array = []
+    accuracy_Array.append(metrics.accuracy_score(goodSentences_test, emails_results))
+    
+    goodSentences = IsGoodSentenceList
+    #initialize folds
+    kf = KFold(n_splits = 10, shuffle = True, random_state = 45)
+    
+    #The internet told me to split it like this
+    for train_index, test_index in kf.split(emails, goodSentences):
+        
+        # fit and transform training into vector matrix
+        emails_train_dtm = vect.fit_transform(emails.iloc[train_index].values)
+        emails_test_dtm = vect.transform(emails.iloc[test_index].values)
+        
+        #goodSentences_train = vect.transform(goodSentences[goodSentences].values)
+        print(goodSentences[train_index])
+        goodSentences_train = np.vectorize(boolstr_to_floatstr)(goodSentences[train_index]).astype(int)
+        print(goodSentences_train)
+        
+        
+        clf = svm.SVC()
+        clf.fit(emails_train_dtm, goodSentences_train)    
+        #Set up svc stuff (will modify into loop later)
+        svm.SVC(C=1.0, cache_size=400, class_weight=None, coef0=0.0,
+        decision_function_shape='ovr', degree=3, gamma='auto', kernel='rbf',
+        max_iter=-1, probability=False, random_state=None, shrinking=True,
+        tol=0.001, verbose=False)
+        #see how it got split up
+        #print (len(train_index), len(test_index))
+        
+        
+        #Fit and then compare the predictions
+        emails_results = clf.predict(emails_test_dtm)
+        
+        #Assign to return array and print
+        accuracy_Array.append(metrics.accuracy_score(metrics.accuracy_score(goodSentences[test_index].values, emails_results)))
+        print(metrics.accuracy_score(goodSentences[test_index].value, emails_results))
+        print(metrics.confusion_matrix(goodSentences[test_index].value, emails_results))
+    
+    
+    '''
     #Bring in NaiveBayes and apply it to the test set
     #This is the actual machine learning part
     nb = MultinomialNB()
-    nb.fit(Description_train_dtm, category_train)
-    category_prediction_test = nb.predict(Description_test_dtm)
+    nb.fit(emails_train_dtm, goodSentences_train)
+    category_prediction_test = nb.predict(emails_test_dtm)
     
     #print out what the categories are
-    print(category_test.unique())
+    print(goodSentences_test.unique())
     
     #print the accuracy is
-    print(metrics.accuracy_score(category_test, category_prediction_test))    
+    print(metrics.accuracy_score(goodSentences_test, category_prediction_test))    
     #This is a thing.  I am still uncertain how to use it
-    print(metrics.confusion_matrix(category_test, category_prediction_test))
+    print(metrics.confusion_matrix(goodSentences_test, category_prediction_test))
 
     #Create and assign the start of the return array the answer for the first accuracy score
     accuracy_Array = []
-    accuracy_Array.append(metrics.accuracy_score(category_test, category_prediction_test))
+    accuracy_Array.append(metrics.accuracy_score(goodSentences_test, category_prediction_test))
     
     
     #initialize folds
     kf = KFold(n_splits = 10, shuffle = True, random_state = 45)
-    print(kf.get_n_splits(Description_train, category_train))
+    print(kf.get_n_splits(emails_train, goodSentences_train))
     
     #The internet told me to split it like this
-    for train_index, test_index in kf.split(descriptionX, descriptionX):
+    for train_index, test_index in kf.split(emails, emails):
         #Create a new naive_bayes model for each test set and then put its accuracy in an array
         nb = MultinomialNB()
         
@@ -149,18 +213,18 @@ def MachineLearningPart(dataFrame):
         #print (len(train_index), len(test_index))
         
         # fit and transform training into vector matrix
-        Description_train_dtm = vect.fit_transform(descriptionX.iloc[train_index].values)
-        Description_test_dtm = vect.transform(descriptionX.iloc[test_index].values)
+        emails_train_dtm = vect.fit_transform(emails.iloc[train_index].values)
+        emails_test_dtm = vect.transform(emails.iloc[test_index].values)
         
         #Fit and then compare the predictions
-        nb.fit(Description_train_dtm, categoryY.iloc[train_index].values)
-        category_prediction_test = nb.predict(Description_test_dtm)
+        nb.fit(emails_train_dtm, goodSentences.iloc[train_index].values)
+        category_prediction_test = nb.predict(emails_test_dtm)
         
         #Assign to return array and print
-        accuracy_Array.append(metrics.accuracy_score(categoryY.iloc[test_index].values, category_prediction_test))
-        print(metrics.accuracy_score(categoryY.iloc[test_index].values, category_prediction_test))    
-        print(metrics.confusion_matrix(categoryY.iloc[test_index].values, category_prediction_test))
-    
+        accuracy_Array.append(metrics.accuracy_score(goodSentences.iloc[test_index].values, category_prediction_test))
+        print(metrics.accuracy_score(goodSentences.iloc[test_index].values, category_prediction_test))    
+        print(metrics.confusion_matrix(goodSentences.iloc[test_index].values, category_prediction_test))
+    '''
     return accuracy_Array
 
 def main():    
