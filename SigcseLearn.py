@@ -24,65 +24,47 @@ def LoopThroughDocuments(filePath, folderName):
     
     # loop through all the files in the folder
     for fileName in fileNames: 
+    
+        f = open(os.path.join(os.path.abspath(filePath), fileName), 'r', encoding='ISO-8859-1')
+        
+        # Read file and split based by sentences
+        # remove new lines, split on strings that have a "." plus any white space, or split on ?!; or .* plus -(2 or more dashes) or . word whitespace
+        rawText = f.read().lower()
+        
+        # Remove Stop Words
+        for stopword in stop_words.ENGLISH_STOP_WORDS:
+            rawText = re.sub(r'\b' + stopword.lower() + r'\b', '', rawText)
+        
+        rawText = re.split(r'\.\s+|[?!;]|\.*\-{2,}|\.\w\s|,\n+\s*', rawText)
+        rawText = [string for string in rawText if ' ' in string]
+        rawText = [string.strip() for string in rawText]
+        rawText = [re.sub('[\n]', r'', string) for string in rawText] 
+        f.close()
+        
         # Assigns the summary into the dataframe
-        if fileName == 'summary.txt': 
-            
-            f = open(os.path.join(os.path.abspath(filePath), fileName), 'r', encoding='ISO-8859-1')
-            
-            # Read file and split based by sentences
-            # remove new lines, split on strings that have a "." plus any white space, or split on ?!; or .* plus -(2 or more dashes) or . word whitespace
-            rawText = f.read().lower()
-            
-            # Remove Stop Words
-            for stopword in stop_words.ENGLISH_STOP_WORDS:
-                rawText = re.sub(r'\b' + stopword.lower() + r'\b', '', rawText)
-            
-            rawText = re.split(r'\.\s+|[?!;]|\.*\-{2,}|\.\w\s|,\n+\s*', rawText)
-            rawText = [string for string in rawText if ' ' in string]
-            rawText = [string.strip() for string in rawText]
-            rawText = [re.sub('[\n]', r'', string) for string in rawText]
-            #rawText = [re.sub(str.punctuation, r'', string) for string in rawText]
-            f.close()
+        if fileName == 'summary.txt':            
             
             # Create dataframe and concat it to what exists (if something exists)
             # Add all sentences into dataframe
             textObject = {'FileName' : folderName + '__summary', 'RawText' : rawText, 'NoPunctuation' : ''}    
-            if dataframe.empty:
-                dataframe = pd.DataFrame.from_dict(textObject)
-            else:
-                dataframe = pd.concat([dataframe, pd.DataFrame.from_dict(textObject)], ignore_index=True, sort=False)
                 
         # Checks to see if the text file is a number and if it is read it into the main dataframe
         elif fileName.split('.')[0].isnumeric():
-        
-            f = open(os.path.join(os.path.abspath(filePath), fileName), 'r', encoding='ISO-8859-1')   
-            # Read file and split based by sentences
-            # remove new lines, split on strings that have a "." plus any white space, or split on ?!; or multiline ---- elements
-            rawText = f.read().lower()            
-            
-            # Remove Stop Words
-            for stopword in stop_words.ENGLISH_STOP_WORDS:
-                rawText = re.sub(r'\b' + stopword.lower() + r'\b', '', rawText)
-            
-            rawText = re.split(r'\.\s+|[?!;]|\.*\-{2,}|\.\w\s|,\n+\s*', rawText)
-            rawText = [string for string in rawText if ' ' in string]
-            rawText = [string.strip() for string in rawText]
-            rawText = [re.sub('[\n]', r'', string) for string in rawText] 
-            f.close()
             
             # Create dataframe and concat it to what exists (if something exists)
             # Add all sentences into dataframe
-            textObject = {'FileName' : folderName + '__' + str(counter), 'RawText' : rawText, 'NoPunctuation' : ''}       
-            if dataframe.empty:
-                dataframe = pd.DataFrame.from_dict(textObject)
-            else:
-                dataframe = pd.concat([dataframe, pd.DataFrame.from_dict(textObject)], ignore_index=True, sort=False)
+            textObject = {'FileName' : folderName + '__' + str(counter), 'RawText' : rawText, 'NoPunctuation' : ''}     
             counter += 1
         
-        #dataframe.reset_index(drop = False)
-        '''for index, row in dataframe.iterrows():
-            dataframe.iloc[index]['NoPunctuation'] = ''.join(ch for ch in row['RawText'] if ch not in strng.punctuation)
-        '''        
+        if dataframe.empty:
+            dataframe = pd.DataFrame.from_dict(textObject)
+        else:
+            dataframe = pd.concat([dataframe, pd.DataFrame.from_dict(textObject)], ignore_index=True, sort=False)
+    dataframe.reset_index(drop = False)
+    for index, row in dataframe.iterrows():
+        dataframe.iloc[index]['NoPunctuation'] = ''.join(ch for ch in row['RawText'] if ch not in strng.punctuation)
+                
+
     return dataframe
     
     
@@ -96,18 +78,18 @@ def ModifyRawData(rawDataFrame, rawEmails, rawSummaries):
     #print(rawSummaries.head())
     
     #nopunc = [char for char in rawEmails if char not in str.punctuation]
-    '''rawEmails.reset_index(drop = False)
+    rawEmails.reset_index(drop = False)
     print(rawEmails.iloc[0]['NoPunctuation'])
-    print(rawEmails.head())
+    print(rawEmails.shape)
     
-    countVectorText = vect.fit_transform(rawEmails)
+    countVectorText = vect.fit_transform(rawEmails['NoPunctuation'])
     print(countVectorText.shape)
     
     # Create Y column (this is what we will be working to get using the SVM later on).  It's the unknown we want to solve for later on
     
-    rawEmails['IsSummarySentence'] = rawEmails['RawText'].isin(rawSummaries['RawText'])
-    '''
-    #print(df.head())
+    summaryList = rawEmails['RawText'].isin(rawSummaries['RawText'])
+    
+    print(summaryList)
     
     #return dataframe    
 
