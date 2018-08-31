@@ -9,6 +9,7 @@ from sklearn.feature_extraction import stop_words
 from sklearn import svm
 from sklearn import metrics
 from sklearn.model_selection import KFold, StratifiedKFold
+from sklearn import preprocessing as preproc
 
 
 #Thank you Internet
@@ -103,7 +104,7 @@ def ModifyRawData(rawDataFrame, rawEmails, rawSummaries):
 
 #This should hold all the machine learning things
 def MachineLearningPart(Emails, IsGoodSentenceList):
-    vect = CountVectorizer()
+    vect = CountVectorizer(ngram_range=(1, 2))
     
     #Assign Test and Train parts
     emails = Emails['NoPunctuation']
@@ -149,12 +150,16 @@ def MachineLearningPart(Emails, IsGoodSentenceList):
     
     #The internet told me to split it like this
     for train_index, test_index in kf.split(emails, goodSentences):
+        print('here')
+        print(goodSentences[train_index].max)
         
         # fit and transform training into vector matrix
         emails_train_dtm = vect.fit_transform(emails.iloc[train_index].values)
         emails_test_dtm = vect.transform(emails.iloc[test_index].values)
         
-        #goodSentences_train = vect.transform(goodSentences[goodSentences].values)
+        print(goodSentences[train_index].max)
+        
+        '''#goodSentences_train = vect.transform(goodSentences[goodSentences].values)
         print(goodSentences[train_index])
         goodSentences_train = np.vectorize(boolstr_to_floatstr)(goodSentences[train_index]).astype(int)
         print(goodSentences_train)
@@ -177,7 +182,7 @@ def MachineLearningPart(Emails, IsGoodSentenceList):
         #Assign to return array and print
         accuracy_Array.append(metrics.accuracy_score(metrics.accuracy_score(goodSentences[test_index].values, emails_results)))
         print(metrics.accuracy_score(goodSentences[test_index].value, emails_results))
-        print(metrics.confusion_matrix(goodSentences[test_index].value, emails_results))
+        print(metrics.confusion_matrix(goodSentences[test_index].value, emails_results))'''
     
     
     '''
