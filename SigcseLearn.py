@@ -3,22 +3,12 @@ import os
 import numpy as np
 import pandas as pd
 import string as strng
-from scipy.sparse import hstack, metrics, svm
+from scipy.sparse import hstack
+from sklearn import metrics, svm
 from sklearn.cross_validation import train_test_split
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer, stop_words
+from sklearn.feature_extraction import stop_words
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.model_selection import KFold, StratifiedKFold
-
-
-#Thank you Internet
-#https://stackoverflow.com/questions/16869990/how-to-convert-from-boolean-array-to-int-array-in-python
-def boolstr_to_floatstr(v):
-    if v == 'True':
-        return '1'
-    elif v == 'False':
-        return '0'
-    else:
-        return '0'
-
 
 # Read in all the txt Files
 def LoopThroughDocuments(filePath, folderName):
@@ -145,9 +135,10 @@ def MachineLearningPart(Emails, IsGoodSentenceList):
     #Set up svc stuff (will modify into loop later)
     clf = svm.SVC(C=1.0, cache_size=8000, class_weight=None, coef0=0.1,
     decision_function_shape='ovr', degree=3, gamma='auto', kernel='rbf',
-    max_iter=-1, probability=True, random_state=1, shrinking=True,
+    max_iter=-1, probability=False, random_state=1, shrinking=True,
     tol=.01, verbose=False)
-
+    print(clf.get_params())
+    
     clf.fit(tfid_emails_train_dtm, goodSentences_train)    
     
     vect_tfidf_emails_results = clf.predict(tfid_emails_test_dtm)
@@ -162,29 +153,30 @@ def MachineLearningPart(Emails, IsGoodSentenceList):
     accuracy_Array.append(metrics.accuracy_score(goodSentences_test, vect_tfidf_emails_results))
     
     
-    '''
+    
     randomStateCount = 1
-    for cAmount in np.linspace(0.1,1,10):
-            for coef0Amount in np.linspace(0,1,11):
-                for tolAmount in [.001, .01, .1]:                    
+    for cAmount in np.linspace(1,10,10):
+            for gammaAmount in np.linspace(.1,1,11):                 
                     
                     #Set up svc stuff (will modify into loop later)
-                    clf = svm.SVC(C=cAmount, cache_size=8000, class_weight=None, coef0=coef0Amount,
-                    decision_function_shape='ovr', degree=3, gamma='auto', kernel='rbf',
+                    clf = svm.SVC(C=cAmount, cache_size=8000, class_weight=None, coef0=0.0,
+                    decision_function_shape='ovr', degree=3, gamma=gammaAmount, kernel='rbf',
                     max_iter=-1, probability=False, random_state=randomStateCount, shrinking=True,
-                    tol=tolAmount, verbose=False)
+                    tol=.001, verbose=False)
 
                     clf.fit(vect_tfidf_emails_train_dtm, goodSentences_train)    
                     
                     vect_tfidf_emails_results = clf.predict(vect_tfidf_emails_test_dtm)
                     #print the accuracy is
+                    print('cAmount: ' + str(cAmount) + ' gammaAmount: ' + str(gammaAmount))
                     print('CountVectorizer + TFIDFVectorizer Results: ')
-                    print(metrics.accuracy_score(goodSentences_test, vect_tfidf_emails_results))    
+                    #print(metrics.accuracy_score(goodSentences_test, vect_tfidf_emails_results))   
+                    print(metrics.f1_score(goodSentences_test, vect_tfidf_emails_results))     
                     #This is a thing.  I am still uncertain how to use it
-                    print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
+                    #print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
                         
-                    accuracy_Array = []
-                    accuracy_Array.append(metrics.accuracy_score(goodSentences_test, vect_tfidf_emails_results))
+                    #accuracy_Array = []
+                    #accuracy_Array.append(metrics.accuracy_score(goodSentences_test, vect_tfidf_emails_results))
                     
                     randomStateCount += 1
                     
