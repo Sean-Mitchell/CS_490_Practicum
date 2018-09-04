@@ -1,5 +1,6 @@
 import re
 import os
+import time
 import numpy as np
 import pandas as pd
 import string as strng
@@ -9,6 +10,11 @@ from sklearn.cross_validation import train_test_split
 from sklearn.feature_extraction import stop_words
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.model_selection import KFold, StratifiedKFold
+from threading import Lock, Thread
+
+# Global variables for holding the percentages
+statsLock = Lock()
+statsArray = []
 
 # Read in all the txt Files
 def LoopThroughDocuments(filePath, folderName):
@@ -90,7 +96,8 @@ def ModifyRawData(rawDataFrame, rawEmails, rawSummaries):
     #return dataframe    
 
 #This should hold all the machine learning things
-def MachineLearningPart(Emails, IsGoodSentenceList):
+def MachineLearningPart(Emails, IsGoodSentenceList):   
+    
     vect = CountVectorizer(ngram_range=(1, 2))
     tfidfVect = TfidfVectorizer(ngram_range=(1, 2))
     
@@ -132,6 +139,11 @@ def MachineLearningPart(Emails, IsGoodSentenceList):
     # This prints off indices of true values
     #print([i for i, x in enumerate(goodSentences_train) if x])
     
+    # #########################################################################################
+    #                       Simplest SVM Set up.  Used for one off runs                       #
+    # #########################################################################################
+    
+    '''
     #Set up svc stuff (will modify into loop later)
     clf = svm.SVC(C=1.0, cache_size=8000, class_weight=None, coef0=0.1,
     decision_function_shape='ovr', degree=3, gamma='auto', kernel='rbf',
@@ -148,78 +160,67 @@ def MachineLearningPart(Emails, IsGoodSentenceList):
     print(metrics.precision_recall_fscore_support(goodSentences_test, vect_tfidf_emails_results))    
     #This is a thing.  I am still uncertain how to use it
     print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
-        
-    accuracy_Array = []
-    accuracy_Array.append(metrics.accuracy_score(goodSentences_test, vect_tfidf_emails_results))
+    '''
     
-    
+    # #########################################################################################
+    #            Working Maching Learning, will be copied for threaded application            #
+    # #########################################################################################
+    '''
+    textObject = []  
     
     randomStateCount = 1
-    for cAmount in np.linspace(1,10,10):
-            for gammaAmount in np.linspace(.1,1,11):                 
+    for cAmount in np.linspace(20, 30, 100):
+            for gammaAmount in np.linspace(.001, .12, 100):                 
                     
                     #Set up svc stuff (will modify into loop later)
-                    clf = svm.SVC(C=cAmount, cache_size=8000, class_weight=None, coef0=0.0,
+                    clf = svm.SVC(C=cAmount, cache_size=5000, class_weight=None, coef0=0.0,
                     decision_function_shape='ovr', degree=3, gamma=gammaAmount, kernel='rbf',
-                    max_iter=-1, probability=False, random_state=randomStateCount, shrinking=True,
+                    max_iter=-1, probability=False, random_state=1, shrinking=True,
                     tol=.001, verbose=False)
 
                     clf.fit(vect_tfidf_emails_train_dtm, goodSentences_train)    
                     
                     vect_tfidf_emails_results = clf.predict(vect_tfidf_emails_test_dtm)
                     #print the accuracy is
-                    print('cAmount: ' + str(cAmount) + ' gammaAmount: ' + str(gammaAmount))
-                    print('CountVectorizer + TFIDFVectorizer Results: ')
+                    #print('cAmount: ' + str(cAmount) + ' gammaAmount: ' + str(gammaAmount))
+                    #print('CountVectorizer + TFIDFVectorizer Results: ')
                     #print(metrics.accuracy_score(goodSentences_test, vect_tfidf_emails_results))   
-                    print(metrics.f1_score(goodSentences_test, vect_tfidf_emails_results))     
+                    #print(metrics.f1_score(goodSentences_test, vect_tfidf_emails_results))     
                     #This is a thing.  I am still uncertain how to use it
                     #print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
+                    if (metrics.f1_score(goodSentences_test, vect_tfidf_emails_results) >= .25):
                         
-                    #accuracy_Array = []
-                    #accuracy_Array.append(metrics.accuracy_score(goodSentences_test, vect_tfidf_emails_results))
+                        textObject.append({'cAmount': cAmount, 'gammaAmount': gammaAmount, 'F1_Score': metrics.f1_score(goodSentences_test, vect_tfidf_emails_results)})
+                        randomStateCount += 1
                     
-                    randomStateCount += 1
-                    
+    #print(textObject)     
+
+    textObject = pd.DataFrame.from_dict(textObject)
+    print('Runtime is: ' + str(time.time() - start_time) + ' seconds.')
+    print(textObject.sort_values(by=['F1_Score'], ascending=False))
     goodSentences = IsGoodSentenceList
     #initialize folds'''
-    kf = KFold(n_splits = 10, shuffle = True, random_state = 45)
-    '''
-    #The internet told me to split it like this
-    for train_index, test_index in kf.split(emails, goodSentences):
-        print('here')
-        print(goodSentences[train_index].max)
-        
-        # fit and transform training into vector matrix
-        emails_train_dtm = vect.fit_transform(emails.iloc[train_index].values)
-        emails_test_dtm = vect.transform(emails.iloc[test_index].values)
-        
-        print(goodSentences[train_index].max)
-        
-        #goodSentences_train = vect.transform(goodSentences[goodSentences].values)
-        print(goodSentences[train_index])
-        goodSentences_train = np.vectorize(boolstr_to_floatstr)(goodSentences[train_index]).astype(int)
-        print(goodSentences_train)
-        
-        
-        clf = svm.SVC()
-        clf.fit(emails_train_dtm, goodSentences_train)    
-        #Set up svc stuff (will modify into loop later)
-        svm.SVC(C=1.0, cache_size=400, class_weight=None, coef0=0.0,
-        decision_function_shape='ovr', degree=3, gamma='auto', kernel='rbf',
-        max_iter=-1, probability=False, random_state=None, shrinking=True,
-        tol=0.001, verbose=False)
-        #see how it got split up
-        #print (len(train_index), len(test_index))
-        
-        
-        #Fit and then compare the predictions
-        emails_results = clf.predict(emails_test_dtm)
-        
-        #Assign to return array and print
-        accuracy_Array.append(metrics.accuracy_score(metrics.accuracy_score(goodSentences[test_index].values, emails_results)))
-        print(metrics.accuracy_score(goodSentences[test_index].value, emails_results))
-        print(metrics.confusion_matrix(goodSentences[test_index].value, emails_results))'''
     
+    
+    # #########################################################################################
+    #            Working Maching Learning, will be copied for threaded application            #
+    # #########################################################################################
+    
+    
+    threads = []
+    for cAmount in np.linspace(20, 30, 100):
+            for gammaAmount in np.linspace(.001, .12, 100):  
+                threads.append(Thread(target=LearningThread, args=(vect_tfidf_emails_train_dtm, vect_tfidf_emails_test_dtm, goodSentences_train, goodSentences_test, cAmount, gammaAmount)))
+                threads[-1].start()
+    for thread in threads:
+        """
+        Waits for threads to complete before moving on with the main
+        script.
+        """
+        thread.join()
+    # #########################################################################################
+    #                                        NaiveBayes                                       #
+    # #########################################################################################
     
     '''
     #Bring in NaiveBayes and apply it to the test set
@@ -266,27 +267,28 @@ def MachineLearningPart(Emails, IsGoodSentenceList):
         print(metrics.accuracy_score(goodSentences.iloc[test_index].values, category_prediction_test))    
         print(metrics.confusion_matrix(goodSentences.iloc[test_index].values, category_prediction_test))
     '''
-    return accuracy_Array
 
+def LearningThread(emails_train_dtm, emails_test_dtm, goodSentences_train, goodSentences_test, cAmount, gammaAmount):
+    #Set up svc stuff (will modify into loop later)
+    clf = svm.SVC(C=cAmount, cache_size=5000, class_weight=None, coef0=0.0,
+    decision_function_shape='ovr', degree=3, gamma=gammaAmount, kernel='rbf',
+    max_iter=-1, probability=False, random_state=1, shrinking=True,
+    tol=.001, verbose=False)
+
+    clf.fit(emails_train_dtm, goodSentences_train)    
+    
+    emails_train_dtm_results = clf.predict(emails_test_dtm)
+    
+    if (metrics.f1_score(goodSentences_test, emails_train_dtm_results) >= .25):
+        statsLock.acquire()
+        statsArray.append({'cAmount': cAmount, 'gammaAmount': gammaAmount, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results)})
+        statsLock.release()
+    
 def main():    
-    '''
-    #Get before shape
-    #print(concatdf.shape)
-    
-    #Drop NaN values 
-    concatdf = concatdf.dropna()
-    
-    #Get Results (first in array is the accuracy from the split)
-    #All else are accuracies from the kfold split
-    nb_accuracy = MachineLearningPart(concatdf)
-    
-    
-    print('Split Accuracy: ' + str(nb_accuracy[0]))
-    print('Kfold Accuracy Ave: ' + str(sum(nb_accuracy[1:])/len(nb_accuracy[1:])))
-    '''
-
+   
+    start_time = time.time()
     # ###########################################################
-    #            Read in Files and create rawDataFrame            #
+    #            Read in Files and create rawDataFrame          #
     # ###########################################################
     
     filepath = 'Sigcse/'
@@ -313,7 +315,9 @@ def main():
     # prints full head
     # pd.set_option('display.max_colwidth', -1)
     # print(df.head())
-    
+    locStatsArray = pd.DataFrame.from_dict(statsArray)
+    print('Runtime is: ' + str(time.time() - start_time) + ' seconds.')
+    print(locStatsArray.sort_values(by=['F1_Score'], ascending=False))
     
 main()
 
