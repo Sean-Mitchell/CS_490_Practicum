@@ -19,11 +19,12 @@ statsArray = []
 # Read in all the txt Files
 def LoopThroughDocuments(filePath, folderName):
     fileNames= os.listdir(filePath)
-    dataframe = pd.DataFrame(columns=['FileName','RawText'])
+    dataframe = pd.DataFrame(columns=['FileName','CleanText', 'CleanTextNoPunc'])
+    dataframeNoStop = pd.DataFrame(columns=['FileName','TextNoStop', 'TextNoStopNoPunc'])
     
     # Don't worry about reading files in if there is no summary atm
     if 'summary.txt' not in fileNames:
-        return dataframe        
+        return dataframe, dataframeNoStop    
         
     # used for index creation while adding into a new dataframe
     counter = 0
@@ -35,16 +36,20 @@ def LoopThroughDocuments(filePath, folderName):
         
         # Read file and split based by sentences
         # remove new lines, split on strings that have a "." plus any white space, or split on ?!; or .* plus -(2 or more dashes) or . word whitespace
-        rawText = f.read().lower()
+        RawTextNoStopWords = f.read().lower()
         
         # Remove Stop Words
         for stopword in stop_words.ENGLISH_STOP_WORDS:
-            rawText = re.sub(r'\b' + stopword.lower() + r'\b', '', rawText)
+            rawText = re.sub(r'\b' + stopword.lower() + r'\b', '', RawTextNoStopWords)
         
         rawText = re.split(r'\.\s+|[?!;]|\.*\-{2,}|\.\w\s|,\n+\s*', rawText)
+        RawTextNoStopWords = re.split(r'\.\s+|[?!;]|\.*\-{2,}|\.\w\s|,\n+\s*', RawTextNoStopWords)
         rawText = [string for string in rawText if ' ' in string]
+        RawTextNoStopWords = [string for string in RawTextNoStopWords if ' ' in RawTextNoStopWords]
         rawText = [string.strip() for string in rawText]
+        RawTextNoStopWords = [string.strip() for string in RawTextNoStopWords]
         rawText = [re.sub('[\n]', r'', string) for string in rawText] 
+        RawTextNoStopWords = [re.sub('[\n]', r'', string) for string in RawTextNoStopWords] 
         f.close()
         
         # Assigns the summary into the dataframe
@@ -52,27 +57,36 @@ def LoopThroughDocuments(filePath, folderName):
             
             # Create dataframe and concat it to what exists (if something exists)
             # Add all sentences into dataframe
-            textObject = {'FileName' : folderName + '__summary', 'RawText' : rawText, 'NoPunctuation' : ''}    
+            textObject = {'FileName' : folderName + '__summary', 'CleanText' : rawText , 'CleanTextNoPunc' : ''}    
+            textObjectNoStopWords = {'FileName' : folderName + '__' + str(counter),'TextNoStop' : RawTextNoStopWords, 'TextNoStopNoPunc' : ''}  
                 
         # Checks to see if the text file is a number and if it is read it into the main dataframe
         elif fileName.split('.')[0].isnumeric():
             
             # Create dataframe and concat it to what exists (if something exists)
             # Add all sentences into dataframe
-            textObject = {'FileName' : folderName + '__' + str(counter), 'RawText' : rawText, 'NoPunctuation' : ''}     
+            # if rawtext is 0 for some reason replace with empty strings
+            textObject = {'FileName' : folderName + '__' + str(counter), 'CleanText' : rawText , 'CleanTextNoPunc' : ''}   
+            textObjectNoStopWords = {'FileName' : folderName + '__' + str(counter),'TextNoStop' : RawTextNoStopWords, 'TextNoStopNoPunc' : ''}
             counter += 1
-        
+
         if dataframe.empty:
             dataframe = pd.DataFrame.from_dict(textObject)
+            dataframeNoStop = pd.DataFrame.from_dict(textObjectNoStopWords)
         else:
             dataframe = pd.concat([dataframe, pd.DataFrame.from_dict(textObject)], ignore_index=True, sort=False)
+            dataframeNoStop = pd.concat([dataframeNoStop, pd.DataFrame.from_dict(textObjectNoStopWords)], ignore_index=True, sort=False)
             
-    dataframe.reset_index(drop = False)
-    for index, row in dataframe.iterrows():
-        dataframe.iloc[index]['NoPunctuation'] = ''.join(ch for ch in row['RawText'] if ch not in strng.punctuation)
+    dataframeReset = dataframe.reset_index(drop = False)
+    for index, row in dataframeReset.iterrows():
+        dataframeReset.iloc[index]['CleanTextNoPunc'] = ''.join(ch for ch in row['CleanText'] if ch not in strng.punctuation)
+        
+    dataframeNoStopReset = dataframeNoStop.reset_index(drop = False)
+    for index, row in dataframeNoStopReset.iterrows():
+        dataframeNoStopReset.iloc[index]['TextNoStopNoPunc'] = ''.join(ch for ch in row['TextNoStop'] if ch not in strng.punctuation)
                 
 
-    return dataframe
+    return dataframeReset, dataframeNoStopReset
     
     
 # Split the dataframes into the final data frame that will be used
@@ -81,16 +95,29 @@ def ModifyRawData(rawDataFrame, rawEmails, rawSummaries):
     
     #print(rawEmails.head())
     #print(rawSummaries.head())
-    #print(rawEmails.iloc[0]['NoPunctuation'])
+    #print(rawEmails.iloc[0]['CleanTextNoPunc'])
     #print(rawEmails.shape)    
-    #countVectorText = vect.fit_transform(rawEmails['NoPunctuation'])
+    #countVectorText = vect.fit_transform(rawEmails['CleanTextNoPunc'])
     #print(countVectorText.shape)
     
     # Create Y column (this is what we will be working to get using the SVM later on).  It's the unknown we want to solve for later on    
     rawEmails.reset_index(drop = False)
-    summaryList = rawEmails['RawText'].isin(rawSummaries['RawText'])
+    summaryList = rawEmails['CleanText'].isin(rawSummaries['CleanText'])
+    
+    # ################################################################################################################################################################################################################################################################################################################################################################################
+    # ############################################################################################
+    # ############################################################################################
+    # ############################################################################################
+    
+    # Start here, actually imprt the correct email list for no stop lists.  gj
+    
+    # ############################################################################################
+    # ############################################################################################
+    # ############################################################################################# ############################################################################################
+    summaryListNoStop = rawEmails['TextNoStop'].isin(rawSummaries['TextNoStop'])
     #Assign Test and Train parts
-    rawEmails = rawEmails['NoPunctuation']
+    rawEmails = rawEmails['CleanTextNoPunc']
+    rawEmailsNoStop = rawEmails['TextNoStopNoPunc']
     
     vect = CountVectorizer(ngram_range=(1, 2))
     tfidfVect = TfidfVectorizer(ngram_range=(1, 2))
@@ -144,16 +171,20 @@ def ModifyRawData(rawDataFrame, rawEmails, rawSummaries):
     return rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test
 
 #This should hold all the machine learning things
-def MachineLearningPart(emails_train_dtm, emails_test_dtm, goodSentences_train, goodSentences_test):   
-    
-    
+def MachineLearningPart(emails_train_dtm, emails_test_dtm, goodSentences_train, goodSentences_test):       
     
     # #########################################################################################
     #                       Simplest SVM Set up.  Used for one off runs                       #
     # #########################################################################################
     
-    '''
+    
     #Set up svc stuff (will modify into loop later)
+    clf = RandomForestClassifier(max_depth=2, random_state=12, n_jobs=-1)
+    clf.fit(emails_train_dtm, goodSentences_train)
+    
+    emails_results = clf.predict(emails_test_dtm)
+    
+    
     clf = svm.SVC(C=23.737374, cache_size=8000, class_weight=None, coef0=0.1,
     decision_function_shape='ovr', degree=3, gamma=0.025040, kernel='rbf',
     max_iter=-1, probability=False, random_state=1, shrinking=True,
@@ -171,7 +202,7 @@ def MachineLearningPart(emails_train_dtm, emails_test_dtm, goodSentences_train, 
     print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
     statsArray.append({'cAmount': 23.737374, 'gammaAmount': 0.025040, 'F1_Score': metrics.f1_score(goodSentences_test, vect_tfidf_emails_results)})
     
-    '''
+    
     # #########################################################################################
     #            Working Maching Learning, will be copied for threaded application            #
     # #########################################################################################
@@ -216,7 +247,7 @@ def MachineLearningPart(emails_train_dtm, emails_test_dtm, goodSentences_train, 
     #            Working Maching Learning, will be copied for threaded application            #
     # #########################################################################################
     
-    
+    '''
     threads = []
     for cAmount in np.linspace(20, 30, 100):
             for gammaAmount in np.linspace(.001, .12, 100):  
@@ -228,7 +259,7 @@ def MachineLearningPart(emails_train_dtm, emails_test_dtm, goodSentences_train, 
         script.
         """
         thread.join()
-    
+    '''
     # #########################################################################################
     #                                        NaiveBayes                                       #
     # #########################################################################################
@@ -304,6 +335,9 @@ def main():
     
     filepath = 'Sigcse/'
     df = pd.DataFrame(columns=['FileName','RawText'])
+    dfNoStop = pd.DataFrame(columns=['FileName','RawText'])
+    dfTemp = pd.DataFrame(columns=['FileName','RawText'])
+    dfNoStopTemp = pd.DataFrame(columns=['FileName','RawText'])
     filenames= os.listdir(filepath)
     result = []
     for filename in filenames: # loop through all the files and folders
@@ -311,9 +345,11 @@ def main():
         if os.path.isdir(os.path.join(os.path.abspath(filepath), filename)): # check whether the current object is a folder or not    
             # if empty insert into the new dataframe
             if df.empty:
-                df = LoopThroughDocuments(os.path.join(os.path.abspath(filepath), filename), filename)
+                df, dfNoStop = LoopThroughDocuments(os.path.join(os.path.abspath(filepath), filename), filename)
             else:
-                df = pd.concat([df,LoopThroughDocuments(os.path.join(os.path.abspath(filepath), filename), filename)], ignore_index=True, sort=False)
+                dfTemp, dfNoStopTemp = LoopThroughDocuments(os.path.join(os.path.abspath(filepath), filename), filename)
+                df = pd.concat([df, dfTemp], ignore_index=True, sort=False)
+                dfNoStop = pd.concat([df, dfNoStopTemp], ignore_index=True, sort=False)
     
     
     # #################################################################
