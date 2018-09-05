@@ -100,10 +100,9 @@ def LoopThroughDocuments(filePath, folderName):
     
 # Split the dataframes into the final data frame that will be used
 # This includes matching up the summary sentences, vectorizing, and tfidf as well as assigning 
-def ModifyRawData(#cleanedDataFrame, cleanedEmails, cleanedDataSummaries, 
-rawDataFrame, rawEmails, rawSummaries):
+def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawDataFrame, rawEmails, rawSummaries):
     
-    print(rawEmails['CleanTextNoPunc'].head())
+    #print(rawEmails['CleanTextNoPunc'].head())
     #print(rawSummaries.head())
     #print(rawEmails.iloc[0]['CleanTextNoPunc'])
     #print(rawEmails.shape)    
@@ -114,7 +113,7 @@ rawDataFrame, rawEmails, rawSummaries):
     rawEmails.reset_index(drop = False)
     summaryList = rawEmails['CleanText'].isin(rawSummaries['CleanText'])
     
-    # ################################################################################################################################################################################################################################################################################################################################################################################
+    # #########################################################################################################################################################################################
     # ############################################################################################
     # ############################################################################################
     # ############################################################################################
@@ -126,8 +125,8 @@ rawDataFrame, rawEmails, rawSummaries):
     # ############################################################################################# ############################################################################################
     #summaryListNoStop = rawEmails['TextNoStop'].isin(rawSummaries['TextNoStop'])
     #Assign Test and Train parts
-    rawEmails = rawEmails['CleanTextNoPunc']
-    #rawEmailsNoStop = rawEmails['TextNoStopNoPunc']
+    rawEmailsNoPunc = rawEmails['CleanTextNoPunc']
+    cleanedEmails = cleanedEmails['CleanTextNoPunc']
     
     vect = CountVectorizer(ngram_range=(1, 2))
     tfidfVect = TfidfVectorizer(ngram_range=(1, 2))
@@ -368,8 +367,8 @@ def main():
     # #################################################################    
     
     #revisedDateFrame = 
-    rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test = ModifyRawData(#df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')], 
-                        dfNoStop, dfNoStop[dfNoStop['FileName'].str.contains('summary')==False], dfNoStop[dfNoStop['FileName'].str.contains('summary')])
+    rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test = ModifyRawData(dfNoStop, dfNoStop[dfNoStop['FileName'].str.contains('summary')==False], dfNoStop[dfNoStop['FileName'].str.contains('summary')], 
+                        df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
     # prints full head
     # pd.set_option('display.max_colwidth', -1)
     # print(df.head())
