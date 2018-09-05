@@ -36,11 +36,12 @@ def LoopThroughDocuments(filePath, folderName):
         
         # Read file and split based by sentences
         # remove new lines, split on strings that have a "." plus any white space, or split on ?!; or .* plus -(2 or more dashes) or . word whitespace
-        RawTextNoStopWords = f.read().lower()
+        rawText = f.read().lower()
+        RawTextNoStopWords = rawText + '' # this makes it a deep copy
         
         # Remove Stop Words
         for stopword in stop_words.ENGLISH_STOP_WORDS:
-            rawText = re.sub(r'\b' + stopword.lower() + r'\b', '', RawTextNoStopWords)
+            RawTextNoStopWords = re.sub(r'\b' + stopword.lower() + r'\b', '', rawText)
         
         rawText = re.split(r'\.\s+|[?!;]|\.*\-{2,}|\.\w\s|,\n+\s*', rawText)
         RawTextNoStopWords = re.split(r'\.\s+|[?!;]|\.*\-{2,}|\.\w\s|,\n+\s*', RawTextNoStopWords)
@@ -91,7 +92,7 @@ def LoopThroughDocuments(filePath, folderName):
     
 # Split the dataframes into the final data frame that will be used
 # This includes matching up the summary sentences, vectorizing, and tfidf as well as assigning 
-def ModifyRawData(rawDataFrame, rawEmails, rawSummaries):
+def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawDataFrame, rawEmails, rawSummaries):
     
     #print(rawEmails.head())
     #print(rawSummaries.head())
@@ -109,7 +110,7 @@ def ModifyRawData(rawDataFrame, rawEmails, rawSummaries):
     # ############################################################################################
     # ############################################################################################
     
-    # Start here, actually imprt the correct email list for no stop lists.  gj
+    # Start here, actually imprt the correct email list for no stop lists.
     
     # ############################################################################################
     # ############################################################################################
@@ -358,7 +359,8 @@ def main():
     # #################################################################    
     
     #revisedDateFrame = 
-    rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test = ModifyRawData(df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
+    rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test = ModifyRawData(df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')], 
+                        dfNoStop, dfNoStop[dfNoStop['FileName'].str.contains('summary')==False], dfNoStop[dfNoStop['FileName'].str.contains('summary')])
     # prints full head
     # pd.set_option('display.max_colwidth', -1)
     # print(df.head())
