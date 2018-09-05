@@ -8,7 +8,7 @@ from scipy.sparse import hstack
 from sklearn import metrics, svm
 from sklearn.cross_validation import train_test_split
 from sklearn.feature_extraction import stop_words
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer, HashingVectorizer
 from sklearn.model_selection import KFold, StratifiedKFold
 from threading import Lock, Thread
 
@@ -89,55 +89,64 @@ def ModifyRawData(rawDataFrame, rawEmails, rawSummaries):
     # Create Y column (this is what we will be working to get using the SVM later on).  It's the unknown we want to solve for later on    
     rawEmails.reset_index(drop = False)
     summaryList = rawEmails['RawText'].isin(rawSummaries['RawText'])
-    
-    #print(summaryList)
-    print(MachineLearningPart(rawEmails, summaryList))
-    
-    #return dataframe    
-
-#This should hold all the machine learning things
-def MachineLearningPart(Emails, IsGoodSentenceList):   
+    #Assign Test and Train parts
+    rawEmails = rawEmails['NoPunctuation']
     
     vect = CountVectorizer(ngram_range=(1, 2))
     tfidfVect = TfidfVectorizer(ngram_range=(1, 2))
+    hashVect = HashingVectorizer(ngram_range=(1, 2))
     
-    #Assign Test and Train parts
-    emails = Emails['NoPunctuation']
-    goodSentences = IsGoodSentenceList
     
     #Create Series that the countVectorizer can use to create training and testing sets
-    emails_train, emails_test, goodSentences_train, goodSentences_test = train_test_split(emails, goodSentences, random_state=1)
-    vect.fit(emails)
-    tfidfVect.fit(emails)
+    # ### Note: fits better at the moment without hashVect commented out in case of need for later.
+    rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails, summaryList, random_state=1)
+    
+    vect.fit(rawEmails)
+    tfidfVect.fit(rawEmails)
+    #hashVect.fit(rawEmails)
+    
     # fit and transform training into vector matrix
-    vect_emails_train_dtm = vect.transform(emails_train)
-    tfid_emails_train_dtm = tfidfVect.transform(emails_train)
+    vect_rawEmails_train_dtm = vect.transform(rawEmails_train)
+    tfid_rawEmails_train_dtm = tfidfVect.transform(rawEmails_train)
+    #hash_rawEmails_train_dtm = hashVect.transform(rawEmails_train)
     
     # transform test into test matrix
-    vect_emails_test_dtm = vect.transform(emails_test)
-    tfid_emails_test_dtm = tfidfVect.transform(emails_test)
+    vect_rawEmails_test_dtm = vect.transform(rawEmails_test)
+    tfid_rawEmails_test_dtm = tfidfVect.transform(rawEmails_test)
+    #hash_rawEmails_test_dtm = hashVect.transform(rawEmails_test)
     
     # Scale train and test vector sets
-    maxVal = vect_emails_train_dtm.max()
-    vect_emails_train_dtm = vect_emails_train_dtm/float(maxVal)
-    maxVal = tfid_emails_train_dtm.max()
-    tfid_emails_train_dtm = tfid_emails_train_dtm/float(maxVal)
+    maxVal = vect_rawEmails_train_dtm.max()
+    vect_rawEmails_train_dtm = vect_rawEmails_train_dtm/float(maxVal)
+    maxVal = tfid_rawEmails_train_dtm.max()
+    tfid_rawEmails_train_dtm = tfid_rawEmails_train_dtm/float(maxVal)
+    #maxVal = hash_rawEmails_train_dtm.max()
+    #hash_rawEmails_train_dtm = hash_rawEmails_train_dtm/float(maxVal)
     
     # Concatonate the columns of the training and test set
-    vect_tfidf_emails_train_dtm = hstack([vect_emails_train_dtm, tfid_emails_train_dtm])
-    vect_tfidf_emails_test_dtm = hstack([vect_emails_test_dtm, tfid_emails_test_dtm])
+    rawEmails_train_dtm = hstack([vect_rawEmails_train_dtm, tfid_rawEmails_train_dtm])
+    rawEmails_test_dtm = hstack([vect_rawEmails_test_dtm, tfid_rawEmails_test_dtm])
+    #rawEmails_train_dtm = hstack([vect_tfidf_rawEmails_train_dtm, hash_rawEmails_train_dtm])
+    #rawEmails_test_dtm = hstack([vect_tfidf_rawEmails_test_dtm, hash_rawEmails_test_dtm])
     
     #Double Check shapes
-    #print(emails_train_dtm)
-    #print(emails_train_dtm.shape)
-    #print(emails_test.shape)
-    #print(emails_test_dtm.shape)
-    #print(tfid_emails_test_dtm.shape)
-    #print(vect_tfidf_emails_train_dtm.shape)
-    #print(vect_tfidf_emails_train_dtm)
+    #print(rawEmails_train_dtm)
+    #print(rawEmails_train_dtm.shape)
+    #print(rawEmails_test.shape)
+    #print(rawEmails_test_dtm.shape)
+    #print(tfid_rawEmails_test_dtm.shape)
+    #print(vect_tfidf_rawEmails_train_dtm.shape)
+    #print(vect_tfidf_rawEmails_train_dtm)
     
     # This prints off indices of true values
     #print([i for i, x in enumerate(goodSentences_train) if x])
+    
+    return rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test
+
+#This should hold all the machine learning things
+def MachineLearningPart(emails_train_dtm, emails_test_dtm, goodSentences_train, goodSentences_test):   
+    
+    
     
     # #########################################################################################
     #                       Simplest SVM Set up.  Used for one off runs                       #
@@ -145,23 +154,24 @@ def MachineLearningPart(Emails, IsGoodSentenceList):
     
     '''
     #Set up svc stuff (will modify into loop later)
-    clf = svm.SVC(C=1.0, cache_size=8000, class_weight=None, coef0=0.1,
-    decision_function_shape='ovr', degree=3, gamma='auto', kernel='rbf',
+    clf = svm.SVC(C=23.737374, cache_size=8000, class_weight=None, coef0=0.1,
+    decision_function_shape='ovr', degree=3, gamma=0.025040, kernel='rbf',
     max_iter=-1, probability=False, random_state=1, shrinking=True,
     tol=.01, verbose=False)
     print(clf.get_params())
     
-    clf.fit(tfid_emails_train_dtm, goodSentences_train)    
+    clf.fit(emails_train_dtm, goodSentences_train)    
     
-    vect_tfidf_emails_results = clf.predict(tfid_emails_test_dtm)
+    vect_tfidf_emails_results = clf.predict(emails_test_dtm)
     #print the accuracy is
     print('CountVectorizer + TFIDFVectorizer Results: ')
     print(metrics.accuracy_score(goodSentences_test, vect_tfidf_emails_results))    
     print(metrics.precision_recall_fscore_support(goodSentences_test, vect_tfidf_emails_results))    
     #This is a thing.  I am still uncertain how to use it
     print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
-    '''
+    statsArray.append({'cAmount': 23.737374, 'gammaAmount': 0.025040, 'F1_Score': metrics.f1_score(goodSentences_test, vect_tfidf_emails_results)})
     
+    '''
     # #########################################################################################
     #            Working Maching Learning, will be copied for threaded application            #
     # #########################################################################################
@@ -178,19 +188,19 @@ def MachineLearningPart(Emails, IsGoodSentenceList):
                     max_iter=-1, probability=False, random_state=1, shrinking=True,
                     tol=.001, verbose=False)
 
-                    clf.fit(vect_tfidf_emails_train_dtm, goodSentences_train)    
+                    clf.fit(emails_train_dtm, goodSentences_train)    
                     
-                    vect_tfidf_emails_results = clf.predict(vect_tfidf_emails_test_dtm)
+                    emails_results = clf.predict(emails_test_dtm)
                     #print the accuracy is
                     #print('cAmount: ' + str(cAmount) + ' gammaAmount: ' + str(gammaAmount))
                     #print('CountVectorizer + TFIDFVectorizer Results: ')
-                    #print(metrics.accuracy_score(goodSentences_test, vect_tfidf_emails_results))   
-                    #print(metrics.f1_score(goodSentences_test, vect_tfidf_emails_results))     
+                    #print(metrics.accuracy_score(goodSentences_test, emails_results))   
+                    #print(metrics.f1_score(goodSentences_test, emails_results))     
                     #This is a thing.  I am still uncertain how to use it
-                    #print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
-                    if (metrics.f1_score(goodSentences_test, vect_tfidf_emails_results) >= .25):
+                    #print(metrics.confusion_matrix(goodSentences_test, emails_results))
+                    if (metrics.f1_score(goodSentences_test, emails_results) >= .25):
                         
-                        textObject.append({'cAmount': cAmount, 'gammaAmount': gammaAmount, 'F1_Score': metrics.f1_score(goodSentences_test, vect_tfidf_emails_results)})
+                        textObject.append({'cAmount': cAmount, 'gammaAmount': gammaAmount, 'F1_Score': metrics.f1_score(goodSentences_test, emails_results)})
                         randomStateCount += 1
                     
     #print(textObject)     
@@ -210,7 +220,7 @@ def MachineLearningPart(Emails, IsGoodSentenceList):
     threads = []
     for cAmount in np.linspace(20, 30, 100):
             for gammaAmount in np.linspace(.001, .12, 100):  
-                threads.append(Thread(target=LearningThread, args=(vect_tfidf_emails_train_dtm, vect_tfidf_emails_test_dtm, goodSentences_train, goodSentences_test, cAmount, gammaAmount)))
+                threads.append(Thread(target=LearningThread, args=(emails_train_dtm, emails_test_dtm, goodSentences_train, goodSentences_test, cAmount, gammaAmount)))
                 threads[-1].start()
     for thread in threads:
         """
@@ -218,6 +228,7 @@ def MachineLearningPart(Emails, IsGoodSentenceList):
         script.
         """
         thread.join()
+    
     # #########################################################################################
     #                                        NaiveBayes                                       #
     # #########################################################################################
@@ -311,10 +322,12 @@ def main():
     # #################################################################    
     
     #revisedDateFrame = 
-    ModifyRawData(df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
+    rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test = ModifyRawData(df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
     # prints full head
     # pd.set_option('display.max_colwidth', -1)
     # print(df.head())
+    
+    MachineLearningPart(rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test)
     locStatsArray = pd.DataFrame.from_dict(statsArray)
     print('Runtime is: ' + str(time.time() - start_time) + ' seconds.')
     print(locStatsArray.sort_values(by=['F1_Score'], ascending=False))
