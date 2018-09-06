@@ -1,6 +1,7 @@
-import re
 import os
 import time
+import random
+import re
 import numpy as np
 import pandas as pd
 import string as strng
@@ -372,8 +373,15 @@ def main():
     # prints full head
     # pd.set_option('display.max_colwidth', -1)
     # print(df.head())
+    print('ZeroR F_1 Score:')
+    print(metrics.f1_score(goodSentences_test, np.full((len(goodSentences_test), 1), False, dtype='bool')))
     
-    MachineLearningPart(rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test)
+    print('Coin Toss F_1 Score:')
+    random.seed(123)
+    coinTossArray = np.random.rand(len(goodSentences_test),1)
+    coinTossArrayBool = (coinTossArray > .5)
+    print(metrics.f1_score(goodSentences_test, np.full((len(goodSentences_test), 1), False, dtype='bool')))
+    #MachineLearningPart(rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test)
     locStatsArray = pd.DataFrame.from_dict(statsArray)
     print('Runtime is: ' + str(time.time() - start_time) + ' seconds.')
     print(locStatsArray.sort_values(by=['F1_Score'], ascending=False))
