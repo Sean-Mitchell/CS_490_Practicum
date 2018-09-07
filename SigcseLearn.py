@@ -16,8 +16,6 @@ from threading import Lock, Thread
 # Global variables for holding the percentages
 statsLock = Lock()
 statsArray = []
-threads = []
-
 # Read in all the txt Files
 def LoopThroughDocuments(filePath, folderName):
     fileNames= os.listdir(filePath)
@@ -117,56 +115,57 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     summaryList = rawEmails['CleanText'].isin(rawSummaries['CleanText'])
     cleanedSummaryList = cleanedEmails['CleanText'].isin(cleanedDataSummaries['CleanText'])
     
-    # #########################################################################################################################################################################################
-    # ############################################################################################
-    # ############################################################################################
-    # ############################################################################################
-    
-    # Start here, actually imprt the correct email list for no stop lists.
-    
-    # ############################################################################################
-    # ############################################################################################
-    # ############################################################################################# ############################################################################################
-    #summaryListNoStop = rawEmails['TextNoStop'].isin(rawSummaries['TextNoStop'])
     #Assign Test and Train parts
     rawEmailsNoPunc = rawEmails['CleanTextNoPunc']
     cleanedEmailsNoPunc = cleanedEmails['CleanTextNoPunc']
     
-    vect = CountVectorizer(ngram_range=(1, 2))
-    tfidfVect = TfidfVectorizer(ngram_range=(1, 2))
-    hashVect = HashingVectorizer(ngram_range=(1, 2))
+    rawVect = CountVectorizer(ngram_range=(1, 2))
+    rawtfidfVect = TfidfVectorizer(ngram_range=(1, 2))
+    cleanVect = CountVectorizer(ngram_range=(1, 2))
+    cleantfidfVect = TfidfVectorizer(ngram_range=(1, 2))
+    #hashVect = HashingVectorizer(ngram_range=(1, 2))
     
     
     #Create Series that the countVectorizer can use to create training and testing sets
     # ### Note: fits better at the moment without hashVect commented out in case of need for later.
-    rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmailsNoPunc, summaryList, random_state=1)
-    #cleanedEmails_train, cleanedEmails_test, cleanedEmails_train, goodSentences_test = train_test_split(rawEmails, summaryList, random_state=1)
     
-    vect.fit(rawEmails['CleanTextNoPunc'])
-    tfidfVect.fit(rawEmails['CleanTextNoPunc'])
+    rawVect.fit(rawEmails['CleanTextNoPunc'])
+    rawtfidfVect.fit(rawEmails['CleanTextNoPunc'])
+    cleanVect.fit(rawEmails['CleanTextNoPunc'])
+    cleantfidfVect.fit(rawEmails['CleanTextNoPunc'])
     #hashVect.fit(rawEmails)
     
     # fit and transform training into vector matrix
-    vect_rawEmails_train_dtm = vect.transform(rawEmails_train)
-    tfid_rawEmails_train_dtm = tfidfVect.transform(rawEmails_train)
+    vect_rawEmails_dtm = rawVect.transform(rawEmailsNoPunc)
+    tfid_rawEmails_dtm = rawtfidfVect.transform(rawEmailsNoPunc)
+    vect_cleanEmails_dtm = rawVect.transform(cleanedEmailsNoPunc)
+    tfid_cleanEmails_dtm = rawtfidfVect.transform(cleanedEmailsNoPunc)
     #hash_rawEmails_train_dtm = hashVect.transform(rawEmails_train)
     
     # transform test into test matrix
-    vect_rawEmails_test_dtm = vect.transform(rawEmails_test)
-    tfid_rawEmails_test_dtm = tfidfVect.transform(rawEmails_test)
+    #vect_rawEmails_dtm = rawVect.transform(rawEmails_test)
+    #tfid_rawEmails_dtm = rawtfidfVect.transform(rawEmails_test)
+    #vect_clearnEmails_dtm = rawVect.transform(rawEmails_test)
+    #tfid_cleanEmails_dtm = rawtfidfVect.transform(rawEmails_test)
     #hash_rawEmails_test_dtm = hashVect.transform(rawEmails_test)
     
     # Scale train and test vector sets
-    maxVal = vect_rawEmails_train_dtm.max()
-    vect_rawEmails_train_dtm = vect_rawEmails_train_dtm/float(maxVal)
-    maxVal = tfid_rawEmails_train_dtm.max()
-    tfid_rawEmails_train_dtm = tfid_rawEmails_train_dtm/float(maxVal)
-    #maxVal = hash_rawEmails_train_dtm.max()
-    #hash_rawEmails_train_dtm = hash_rawEmails_train_dtm/float(maxVal)
+    maxVal = vect_rawEmails_dtm.max()
+    vect_rawEmails_dtm = vect_rawEmails_dtm/float(maxVal)
+    maxVal = tfid_rawEmails_dtm.max()
+    tfid_rawEmails_dtm = tfid_rawEmails_dtm/float(maxVal)
+    maxVal = vect_rawEmails_dtm.max()
+    
+    maxVal = vect_cleanEmails_dtm.max()
+    vect_cleanEmails_dtm = vect_cleanEmails_dtm/float(maxVal)
+    maxVal = tfid_cleanEmails_dtm.max()
+    tfid_cleanEmails_dtm = tfid_cleanEmails_dtm/float(maxVal)
     
     # Concatonate the columns of the training and test set
-    rawEmails_train_dtm = hstack([vect_rawEmails_train_dtm, tfid_rawEmails_train_dtm])
-    rawEmails_test_dtm = hstack([vect_rawEmails_test_dtm, tfid_rawEmails_test_dtm])
+    rawEmails_dtm = hstack([vect_rawEmails_dtm, tfid_rawEmails_dtm])
+    cleanEmails_dtm = hstack([vect_cleanEmails_dtm, tfid_cleanEmails_dtm])
+    #rawEmails_train_dtm = hstack([vect_rawEmails_train_dtm, tfid_rawEmails_train_dtm])
+    #rawEmails_test_dtm = hstack([vect_rawEmails_test_dtm, tfid_rawEmails_test_dtm])
     #rawEmails_train_dtm = hstack([vect_tfidf_rawEmails_train_dtm, hash_rawEmails_train_dtm])
     #rawEmails_test_dtm = hstack([vect_tfidf_rawEmails_test_dtm, hash_rawEmails_test_dtm])
     
@@ -181,10 +180,10 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     
     # This prints off indices of true values
     #print([i for i, x in enumerate(goodSentences_train) if x])
-    return rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test
+    return rawEmails_dtm, cleanEmails_dtm, summaryList
 
 #This should hold all the machine learning things
-def MachineLearningPart(emails_train_dtm, emails_test_dtm, goodSentences_train, goodSentences_test):       
+def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):       
     
     # #########################################################################################
     #                       Simplest SVM Set up.  Used for one off runs                       #
@@ -257,15 +256,16 @@ def MachineLearningPart(emails_train_dtm, emails_test_dtm, goodSentences_train, 
     
     
     # #########################################################################################
-    #            Working Maching Learning, will be copied for threaded application            #
+    #                                     Multi threaded                                      #
     # #########################################################################################
+        
     
-    
-    
-    for cAmount in np.linspace(20, 30, 100):
-            for gammaAmount in np.linspace(.001, .12, 100):  
-                threads.append(Thread(target=LearningThread, args=(emails_train_dtm, emails_test_dtm, goodSentences_train, goodSentences_test, cAmount, gammaAmount)))
-                threads[-1].start()
+    threads = []
+    for randomState in range(1, 11):
+        for cAmount in np.linspace(20, 40, 150):
+                for gammaAmount in np.linspace(.001, .12, 100):  
+                    threads.append(Thread(target=LearningThread, args=(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, cAmount, gammaAmount)))
+                    threads[-1].start()
     
     # '''
     # #########################################################################################
@@ -317,21 +317,72 @@ def MachineLearningPart(emails_train_dtm, emails_test_dtm, goodSentences_train, 
         print(metrics.accuracy_score(goodSentences.iloc[test_index].values, category_prediction_test))    
         print(metrics.confusion_matrix(goodSentences.iloc[test_index].values, category_prediction_test))
     '''
+    
+    
+    # #########################################################################################
+    #                           Coin flip and ZeroR for baselines                             #
+    # ######################################################################################### 
+    statsLock.acquire()
+    statsArray.append({'LearningType': 'ZeroR F_1', 'cAmount': 0, 'gammaAmount': 0, 'randState': 0, 'F1_Score': metrics.f1_score(goodSentences_test, np.full((len(goodSentences_test), 1), False, dtype='bool')), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, np.full((len(goodSentences_test), 1), False, dtype='bool'))})
+    statsLock.release()
+    
+    random.seed(123)
+    for i in range(0, 10):
+        coinTossArray = np.random.rand(len(goodSentences_test),1)
+        coinTossArrayBool = (coinTossArray > .5)
+        statsLock.acquire()
+        statsArray.append({'LearningType': 'Coin Toss', 'cAmount': 0, 'gammaAmount': 0, 'randState': 0, 'F1_Score': metrics.f1_score(goodSentences_test, coinTossArrayBool), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, coinTossArrayBool)})
+        statsLock.release()
+    
+    
+    for thread in threads:
+        """
+        Waits for threads to complete before moving on with the main
+        script.
+        """
+        thread.join()
+    
+def LearningThread(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, cAmount, gammaAmount):
 
-def LearningThread(emails_train_dtm, emails_test_dtm, goodSentences_train, goodSentences_test, cAmount, gammaAmount):
-    #Set up svc stuff (will modify into loop later)
+    rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails_dtm, goodSentences, random_state=randomState)
+    cleanedEmails_train, cleanedEmails_test, cleanGoodSentences_train, cleanGoodSentences_test = train_test_split(cleanEmails_dtm, goodSentences, random_state=randomState)
+    
+    
+    # ###########################################################
+    #                       Raw Emails SVM                      #
+    # ########################################################### 
     clf = svm.SVC(C=cAmount, cache_size=5000, class_weight=None, coef0=0.0,
     decision_function_shape='ovr', degree=3, gamma=gammaAmount, kernel='rbf',
     max_iter=-1, probability=False, random_state=1, shrinking=True,
     tol=.001, verbose=False)
 
-    clf.fit(emails_train_dtm, goodSentences_train)    
+    clf.fit(rawEmails_train, goodSentences_train)    
     
-    emails_train_dtm_results = clf.predict(emails_test_dtm)
+    emails_train_dtm_results = clf.predict(rawEmails_test)
     
+    # Only take "good SVMS" based on f1 score
     if (metrics.f1_score(goodSentences_test, emails_train_dtm_results) >= .25):
         statsLock.acquire()
-        statsArray.append({'LearningType': 'SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results), 'ConfusionMatrix': metrics.confusion_matrix(goodSentences_test, emails_train_dtm_results)})
+        statsArray.append({'LearningType': 'raw_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, emails_train_dtm_results)})
+        statsLock.release()
+    
+    
+    # ###########################################################
+    #                       Clean Emails SVM                    #
+    # ########################################################### 
+    clf = svm.SVC(C=cAmount, cache_size=5000, class_weight=None, coef0=0.0,
+    decision_function_shape='ovr', degree=3, gamma=gammaAmount, kernel='rbf',
+    max_iter=-1, probability=False, random_state=1, shrinking=True,
+    tol=.001, verbose=False)
+
+    clf.fit(cleanedEmails_train, cleanGoodSentences_train)    
+    
+    emails_train_dtm_results = clf.predict(cleanedEmails_test)
+    
+    # Only take "good SVMS" based on f1 score
+    if (metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results) >= .25):
+        statsLock.acquire()
+        statsArray.append({'LearningType': 'cleaned_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(cleanGoodSentences_test, emails_train_dtm_results)})
         statsLock.release()
     
 def main():    
@@ -366,35 +417,15 @@ def main():
     # #################################################################    
     
     #revisedDateFrame = 
-    rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test = ModifyRawData(dfNoStop, dfNoStop[dfNoStop['FileName'].str.contains('summary')==False], dfNoStop[dfNoStop['FileName'].str.contains('summary')], 
+    rawEmails_dtm, cleanEmails_dtm, goodSentences = ModifyRawData(dfNoStop, dfNoStop[dfNoStop['FileName'].str.contains('summary')==False], dfNoStop[dfNoStop['FileName'].str.contains('summary')], 
                         df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
                         
                         
-    MachineLearningPart(rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test)
+    MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences)
     # prints full head
     # pd.set_option('display.max_colwidth', -1)
-    # print(df.head())
+    # print(df.head())  
     
-    for thread in threads:
-        """
-        Waits for threads to complete before moving on with the main
-        script.
-        """
-        thread.join()
-    
-    '''
-    statsLock.acquire()
-    statsArray.append({'LearningType': 'ZeroR F_1', 'cAmount': 0, 'gammaAmount': 0, 'F1_Score': metrics.f1_score(goodSentences_test, np.full((len(goodSentences_test), 1), False, dtype='bool')), 'ConfusionMatrix': metrics.confusion_matrix(goodSentences_test, np.full((len(goodSentences_test), 1), False, dtype='bool'))})
-    statsLock.release()
-    
-    random.seed(123)
-    for i in range(0, 10):
-        coinTossArray = np.random.rand(len(goodSentences_test),1)
-        coinTossArrayBool = (coinTossArray > .5)
-        statsLock.acquire()
-        statsArray.append({'LearningType': 'Coin Toss', 'cAmount': 0, 'gammaAmount': 0, 'F1_Score': metrics.f1_score(goodSentences_test, coinTossArrayBool), 'ConfusionMatrix': metrics.confusion_matrix(goodSentences_test, coinTossArrayBool)})
-        statsLock.release()
-    '''   
     locStatsArray = pd.DataFrame.from_dict(statsArray)
     print('Runtime is: ' + str(time.time() - start_time) + ' seconds.')
     print(locStatsArray.sort_values(by=['F1_Score'], ascending=False))
