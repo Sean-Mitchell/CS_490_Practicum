@@ -194,7 +194,7 @@ def MachineLearningPart(emails_train_dtm, emails_test_dtm, goodSentences_train, 
     
     emails_results = clf.predict(emails_test_dtm)
     '''
-    
+    '''
     clf = svm.SVC(C=23.737374, cache_size=8000, class_weight=None, coef0=0.1,
     decision_function_shape='ovr', degree=3, gamma=0.025040, kernel='rbf',
     max_iter=-1, probability=False, random_state=1, shrinking=True,
@@ -211,7 +211,7 @@ def MachineLearningPart(emails_train_dtm, emails_test_dtm, goodSentences_train, 
     #This is a thing.  I am still uncertain how to use it
     print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
     statsArray.append({'cAmount': 23.737374, 'gammaAmount': 0.025040, 'F1_Score': metrics.f1_score(goodSentences_test, vect_tfidf_emails_results)})
-    
+    '''
     
     # #########################################################################################
     #            Working Maching Learning, will be copied for threaded application            #
@@ -257,7 +257,7 @@ def MachineLearningPart(emails_train_dtm, emails_test_dtm, goodSentences_train, 
     #            Working Maching Learning, will be copied for threaded application            #
     # #########################################################################################
     
-    '''
+    
     threads = []
     for cAmount in np.linspace(20, 30, 100):
             for gammaAmount in np.linspace(.001, .12, 100):  
@@ -269,7 +269,7 @@ def MachineLearningPart(emails_train_dtm, emails_test_dtm, goodSentences_train, 
         script.
         """
         thread.join()
-    '''
+    
     # #########################################################################################
     #                                        NaiveBayes                                       #
     # #########################################################################################
@@ -333,7 +333,7 @@ def LearningThread(emails_train_dtm, emails_test_dtm, goodSentences_train, goodS
     
     if (metrics.f1_score(goodSentences_test, emails_train_dtm_results) >= .25):
         statsLock.acquire()
-        statsArray.append({'cAmount': cAmount, 'gammaAmount': gammaAmount, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results)})
+        statsArray.append({'LearningType': 'SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results), 'ConfusionMatrix': metrics.confusion_matrix(goodSentences_test, emails_train_dtm_results)})
         statsLock.release()
     
 def main():    
@@ -370,18 +370,22 @@ def main():
     #revisedDateFrame = 
     rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test = ModifyRawData(dfNoStop, dfNoStop[dfNoStop['FileName'].str.contains('summary')==False], dfNoStop[dfNoStop['FileName'].str.contains('summary')], 
                         df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
+    MachineLearningPart(rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test)
     # prints full head
     # pd.set_option('display.max_colwidth', -1)
     # print(df.head())
-    print('ZeroR F_1 Score:')
-    print(metrics.f1_score(goodSentences_test, np.full((len(goodSentences_test), 1), False, dtype='bool')))
+    statsLock.acquire()
+    statsArray.append({'LearningType': 'ZeroR F_1', 'cAmount': 0, 'gammaAmount': 0, 'F1_Score': metrics.f1_score(goodSentences_test, np.full((len(goodSentences_test), 1), False, dtype='bool')), 'ConfusionMatrix': metrics.confusion_matrix(goodSentences_test, np.full((len(goodSentences_test), 1), False, dtype='bool'))})
+    statsLock.release()
     
-    print('Coin Toss F_1 Score:')
     random.seed(123)
-    coinTossArray = np.random.rand(len(goodSentences_test),1)
-    coinTossArrayBool = (coinTossArray > .5)
-    print(metrics.f1_score(goodSentences_test, np.full((len(goodSentences_test), 1), False, dtype='bool')))
-    #MachineLearningPart(rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test)
+    for i in range(0, 10):
+        coinTossArray = np.random.rand(len(goodSentences_test),1)
+        coinTossArrayBool = (coinTossArray > .5)
+        statsLock.acquire()
+        statsArray.append({'LearningType': 'Coin Toss', 'cAmount': 0, 'gammaAmount': 0, 'F1_Score': metrics.f1_score(goodSentences_test, coinTossArrayBool), 'ConfusionMatrix': metrics.confusion_matrix(goodSentences_test, coinTossArrayBool)})
+        statsLock.release()
+        
     locStatsArray = pd.DataFrame.from_dict(statsArray)
     print('Runtime is: ' + str(time.time() - start_time) + ' seconds.')
     print(locStatsArray.sort_values(by=['F1_Score'], ascending=False))
