@@ -262,7 +262,7 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
     
     threads = []
     for randomState in range(1, 11):
-        for cAmount in np.linspace(20, 40, 150):
+        for cAmount in np.linspace(10, 40, 100):
                 for gammaAmount in np.linspace(.001, .12, 100):  
                     threads.append(Thread(target=LearningThread, args=(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, cAmount, gammaAmount)))
                     threads[-1].start()
@@ -362,10 +362,11 @@ def LearningThread(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, c
     emails_train_dtm_results = clf.predict(rawEmails_test)
     
     # Only take "good SVMS" based on f1 score
-    if (metrics.f1_score(goodSentences_test, emails_train_dtm_results) >= .25):
-        statsLock.acquire()
-        statsArray.append({'Learning_Type': 'raw_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, emails_train_dtm_results)})
-        statsLock.release()
+    # Update to save all for CV comparison
+    #if (metrics.f1_score(goodSentences_test, emails_train_dtm_results) >= .25):
+    statsLock.acquire()
+    statsArray.append({'Learning_Type': 'raw_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, emails_train_dtm_results)})
+    statsLock.release()
     
     
     # ###########################################################
@@ -381,10 +382,11 @@ def LearningThread(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, c
     emails_train_dtm_results = clf.predict(cleanedEmails_test)
     
     # Only take "good SVMS" based on f1 score
-    if (metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results) >= .25):
-        statsLock.acquire()
-        statsArray.append({'Learning_Type': 'cleaned_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(cleanGoodSentences_test, emails_train_dtm_results)})
-        statsLock.release()
+    # Update to save all for CV comparison
+    #if (metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results) >= .25):
+    statsLock.acquire()
+    statsArray.append({'Learning_Type': 'cleaned_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(cleanGoodSentences_test, emails_train_dtm_results)})
+    statsLock.release()
     
 def main():    
    
@@ -433,7 +435,7 @@ def main():
     print(time.ctime(int(end_time)))
     print('Runtime is: ' + str(end_time - start_time) + ' seconds.')
     locStatsArray = locStatsArray.sort_values(['F1_Score', 'cAmount', 'gammaAmount', 'randState', 'Learning_Type'], ascending=[False, True, True, True, True])
-    locStatsArray.to_csv('output.csv', encoding='utf-8', index=False)
+    locStatsArray.to_csv('output' + str(end_time) + '.csv', encoding='utf-8', index=False)
     
 main()
 
