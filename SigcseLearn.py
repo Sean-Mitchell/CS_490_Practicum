@@ -16,6 +16,7 @@ from threading import Lock, Thread
 # Global variables for holding the percentages
 statsLock = Lock()
 statsArray = []
+threads = []
 
 # Read in all the txt Files
 def LoopThroughDocuments(filePath, folderName):
@@ -111,8 +112,10 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #print(countVectorText.shape)
     
     # Create Y column (this is what we will be working to get using the SVM later on).  It's the unknown we want to solve for later on    
-    rawEmails.reset_index(drop = False)
+    rawEmails.reset_index(drop = False) 
+    cleanedEmails.reset_index(drop = False)
     summaryList = rawEmails['CleanText'].isin(rawSummaries['CleanText'])
+    cleanedSummaryList = cleanedEmails['CleanText'].isin(cleanedDataSummaries['CleanText'])
     
     # #########################################################################################################################################################################################
     # ############################################################################################
@@ -127,7 +130,7 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #summaryListNoStop = rawEmails['TextNoStop'].isin(rawSummaries['TextNoStop'])
     #Assign Test and Train parts
     rawEmailsNoPunc = rawEmails['CleanTextNoPunc']
-    cleanedEmails = cleanedEmails['CleanTextNoPunc']
+    cleanedEmailsNoPunc = cleanedEmails['CleanTextNoPunc']
     
     vect = CountVectorizer(ngram_range=(1, 2))
     tfidfVect = TfidfVectorizer(ngram_range=(1, 2))
@@ -136,10 +139,11 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     
     #Create Series that the countVectorizer can use to create training and testing sets
     # ### Note: fits better at the moment without hashVect commented out in case of need for later.
-    rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails, summaryList, random_state=1)
+    rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmailsNoPunc, summaryList, random_state=1)
+    #cleanedEmails_train, cleanedEmails_test, cleanedEmails_train, goodSentences_test = train_test_split(rawEmails, summaryList, random_state=1)
     
-    vect.fit(rawEmails)
-    tfidfVect.fit(rawEmails)
+    vect.fit(rawEmails['CleanTextNoPunc'])
+    tfidfVect.fit(rawEmails['CleanTextNoPunc'])
     #hashVect.fit(rawEmails)
     
     # fit and transform training into vector matrix
@@ -177,7 +181,6 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     
     # This prints off indices of true values
     #print([i for i, x in enumerate(goodSentences_train) if x])
-    
     return rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test
 
 #This should hold all the machine learning things
@@ -258,18 +261,13 @@ def MachineLearningPart(emails_train_dtm, emails_test_dtm, goodSentences_train, 
     # #########################################################################################
     
     
-    threads = []
+    
     for cAmount in np.linspace(20, 30, 100):
             for gammaAmount in np.linspace(.001, .12, 100):  
                 threads.append(Thread(target=LearningThread, args=(emails_train_dtm, emails_test_dtm, goodSentences_train, goodSentences_test, cAmount, gammaAmount)))
                 threads[-1].start()
-    for thread in threads:
-        """
-        Waits for threads to complete before moving on with the main
-        script.
-        """
-        thread.join()
     
+    # '''
     # #########################################################################################
     #                                        NaiveBayes                                       #
     # #########################################################################################
@@ -370,10 +368,21 @@ def main():
     #revisedDateFrame = 
     rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test = ModifyRawData(dfNoStop, dfNoStop[dfNoStop['FileName'].str.contains('summary')==False], dfNoStop[dfNoStop['FileName'].str.contains('summary')], 
                         df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
+                        
+                        
     MachineLearningPart(rawEmails_train_dtm, rawEmails_test_dtm, goodSentences_train, goodSentences_test)
     # prints full head
     # pd.set_option('display.max_colwidth', -1)
     # print(df.head())
+    
+    for thread in threads:
+        """
+        Waits for threads to complete before moving on with the main
+        script.
+        """
+        thread.join()
+    
+    '''
     statsLock.acquire()
     statsArray.append({'LearningType': 'ZeroR F_1', 'cAmount': 0, 'gammaAmount': 0, 'F1_Score': metrics.f1_score(goodSentences_test, np.full((len(goodSentences_test), 1), False, dtype='bool')), 'ConfusionMatrix': metrics.confusion_matrix(goodSentences_test, np.full((len(goodSentences_test), 1), False, dtype='bool'))})
     statsLock.release()
@@ -385,7 +394,7 @@ def main():
         statsLock.acquire()
         statsArray.append({'LearningType': 'Coin Toss', 'cAmount': 0, 'gammaAmount': 0, 'F1_Score': metrics.f1_score(goodSentences_test, coinTossArrayBool), 'ConfusionMatrix': metrics.confusion_matrix(goodSentences_test, coinTossArrayBool)})
         statsLock.release()
-        
+    '''   
     locStatsArray = pd.DataFrame.from_dict(statsArray)
     print('Runtime is: ' + str(time.time() - start_time) + ' seconds.')
     print(locStatsArray.sort_values(by=['F1_Score'], ascending=False))
