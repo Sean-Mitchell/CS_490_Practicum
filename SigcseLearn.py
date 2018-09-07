@@ -323,15 +323,15 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
     #                           Coin flip and ZeroR for baselines                             #
     # ######################################################################################### 
     statsLock.acquire()
-    statsArray.append({'LearningType': 'ZeroR F_1', 'cAmount': 0, 'gammaAmount': 0, 'randState': 0, 'F1_Score': metrics.f1_score(goodSentences_test, np.full((len(goodSentences_test), 1), False, dtype='bool')), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, np.full((len(goodSentences_test), 1), False, dtype='bool'))})
+    statsArray.append({'Learning_Type': 'ZeroR F_1', 'cAmount': 0, 'gammaAmount': 0, 'randState': 0, 'F1_Score': metrics.f1_score(goodSentences, np.full((len(goodSentences), 1), False, dtype='bool')), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences, np.full((len(goodSentences), 1), False, dtype='bool'))})
     statsLock.release()
     
     random.seed(123)
     for i in range(0, 10):
-        coinTossArray = np.random.rand(len(goodSentences_test),1)
+        coinTossArray = np.random.rand(len(goodSentences),1)
         coinTossArrayBool = (coinTossArray > .5)
         statsLock.acquire()
-        statsArray.append({'LearningType': 'Coin Toss', 'cAmount': 0, 'gammaAmount': 0, 'randState': 0, 'F1_Score': metrics.f1_score(goodSentences_test, coinTossArrayBool), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, coinTossArrayBool)})
+        statsArray.append({'Learning_Type': 'Coin Toss', 'cAmount': 0, 'gammaAmount': 0, 'randState': 0, 'F1_Score': metrics.f1_score(goodSentences, coinTossArrayBool), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences, coinTossArrayBool)})
         statsLock.release()
     
     
@@ -341,6 +341,7 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
         script.
         """
         thread.join()
+    
     
 def LearningThread(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, cAmount, gammaAmount):
 
@@ -363,7 +364,7 @@ def LearningThread(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, c
     # Only take "good SVMS" based on f1 score
     if (metrics.f1_score(goodSentences_test, emails_train_dtm_results) >= .25):
         statsLock.acquire()
-        statsArray.append({'LearningType': 'raw_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, emails_train_dtm_results)})
+        statsArray.append({'Learning_Type': 'raw_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, emails_train_dtm_results)})
         statsLock.release()
     
     
@@ -382,12 +383,13 @@ def LearningThread(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, c
     # Only take "good SVMS" based on f1 score
     if (metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results) >= .25):
         statsLock.acquire()
-        statsArray.append({'LearningType': 'cleaned_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(cleanGoodSentences_test, emails_train_dtm_results)})
+        statsArray.append({'Learning_Type': 'cleaned_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(cleanGoodSentences_test, emails_train_dtm_results)})
         statsLock.release()
     
 def main():    
    
     start_time = time.time()
+    print(time.ctime(int(start_time)))
     # ###########################################################
     #            Read in Files and create rawDataFrame          #
     # ###########################################################
@@ -427,8 +429,11 @@ def main():
     # print(df.head())  
     
     locStatsArray = pd.DataFrame.from_dict(statsArray)
-    print('Runtime is: ' + str(time.time() - start_time) + ' seconds.')
-    print(locStatsArray.sort_values(by=['F1_Score'], ascending=False))
+    end_time = time.time()
+    print(time.ctime(int(end_time)))
+    print('Runtime is: ' + str(end_time - start_time) + ' seconds.')
+    locStatsArray = locStatsArray.sort_values(['F1_Score', 'cAmount', 'gammaAmount', 'randState', 'Learning_Type'], ascending=[False, True, True, True, True])
+    locStatsArray.to_csv('output.csv', encoding='utf-8', index=False)
     
 main()
 
