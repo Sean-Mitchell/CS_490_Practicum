@@ -16,6 +16,9 @@ from threading import Lock, Thread
 # Global variables for holding the percentages
 statsLock = Lock()
 statsArray = []
+
+startwords = []
+
 # Read in all the txt Files
 def LoopThroughDocuments(filePath, folderName):
     fileNames= os.listdir(filePath)
@@ -52,7 +55,7 @@ def LoopThroughDocuments(filePath, folderName):
         rawText = [string.strip() for string in rawText]
         RawTextNoStopWords = [string.strip() for string in RawTextNoStopWords]
         rawText = [re.sub('[\n]', r'', string) for string in rawText] 
-        RawTextNoStopWords = [re.sub('[\n]', r'', string) for string in RawTextNoStopWords] 
+        RawTextNoStopWords = [re.sub('[\n]', r'', string) for string in RawTextNoStopWords]
         f.close()
         
         # Assigns the summary into the dataframe
@@ -61,7 +64,7 @@ def LoopThroughDocuments(filePath, folderName):
             # Create dataframe and concat it to what exists (if something exists)
             # Add all sentences into dataframe
             textObject = {'FileName' : folderName + '__summary', 'CleanText' : rawText , 'CleanTextNoPunc' : ''}    
-            textObjectNoStopWords = {'FileName' : folderName + '__' + str(counter),'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : ''}  
+            textObjectNoStopWords = {'FileName' : folderName + '__summary', 'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : ''}  
                 
         # Checks to see if the text file is a number and if it is read it into the main dataframe
         elif fileName.split('.')[0].isnumeric():
@@ -71,6 +74,7 @@ def LoopThroughDocuments(filePath, folderName):
             # if rawtext is 0 for some reason replace with empty strings
             textObject = {'FileName' : folderName + '__' + str(counter), 'CleanText' : rawText , 'CleanTextNoPunc' : ''}   
             textObjectNoStopWords = {'FileName' : folderName + '__' + str(counter),'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : ''}
+            startwords.append({'Greeting': RawTextNoStopWords[0], 'FileName' : folderName + '__' + str(counter)})
             counter += 1
 
         if dataframeNoStop.empty:
@@ -415,12 +419,14 @@ def main():
                 dfNoStop = pd.concat([df, dfNoStopTemp], ignore_index=True, sort=False)
     
     
+    NICE = pd.DataFrame.from_dict(startwords)
+    NICE.to_csv('startWords.csv', encoding='utf-8', index=False)
     # #################################################################
     #            Modify Raw data into modified data vector            #
     #                     (will be normalized later)                  #
     # #################################################################    
-    
-    #revisedDateFrame = 
+    print('DONE')
+    '''
     rawEmails_dtm, cleanEmails_dtm, goodSentences = ModifyRawData(dfNoStop, dfNoStop[dfNoStop['FileName'].str.contains('summary')==False], dfNoStop[dfNoStop['FileName'].str.contains('summary')], 
                         df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
                         
@@ -435,9 +441,10 @@ def main():
     print(time.ctime(int(end_time)))
     print('Runtime is: ' + str(end_time - start_time) + ' seconds.')
     locStatsArray = locStatsArray.sort_values(['F1_Score', 'cAmount', 'gammaAmount', 'randState', 'Learning_Type'], ascending=[False, True, True, True, True])
-    locStatsArray = locStatsArray.groupby(['cAmount', 'gammaAmount', 'randState', 'Learning_Type'])
-    locStatsArray.to_csv('output' + str(end_time) + '.csv', encoding='utf-8', index=False)
-    
+    #locStatsArray = locStatsArray.groupby(['cAmount', 'gammaAmount', 'randState', 'Learning_Type'])
+    #print(locStatsArray)
+    locStatsArray.to_csv('Output/output_' + str(end_time) + '.csv', encoding='utf-8', index=False)
+    '''
 main()
 
 #Emails prefaced by “from email:”
