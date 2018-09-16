@@ -17,7 +17,6 @@ from threading import Lock, Thread
 statsLock = Lock()
 statsArray = []
 
-startwords = []
 
 # Read in all the txt Files
 def LoopThroughDocuments(filePath, folderName):
@@ -74,7 +73,6 @@ def LoopThroughDocuments(filePath, folderName):
             # if rawtext is 0 for some reason replace with empty strings
             textObject = {'FileName' : folderName + '__' + str(counter), 'CleanText' : rawText , 'CleanTextNoPunc' : ''}   
             textObjectNoStopWords = {'FileName' : folderName + '__' + str(counter),'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : ''}
-            startwords.append({'Greeting': RawTextNoStopWords[0], 'FileName' : folderName + '__' + str(counter)})
             counter += 1
 
         if dataframeNoStop.empty:
@@ -140,9 +138,9 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #hashVect.fit(rawEmails)
     
     # fit and transform training into vector matrix
-    vect_rawEmails_dtm = rawVect.transform(rawEmailsNoPunc)
+    #vect_rawEmails_dtm = rawVect.transform(rawEmailsNoPunc)
     tfid_rawEmails_dtm = rawtfidfVect.transform(rawEmailsNoPunc)
-    vect_cleanEmails_dtm = rawVect.transform(cleanedEmailsNoPunc)
+    #vect_cleanEmails_dtm = rawVect.transform(cleanedEmailsNoPunc)
     tfid_cleanEmails_dtm = rawtfidfVect.transform(cleanedEmailsNoPunc)
     #hash_rawEmails_train_dtm = hashVect.transform(rawEmails_train)
     
@@ -154,20 +152,17 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #hash_rawEmails_test_dtm = hashVect.transform(rawEmails_test)
     
     # Scale train and test vector sets
-    maxVal = vect_rawEmails_dtm.max()
-    vect_rawEmails_dtm = vect_rawEmails_dtm/float(maxVal)
-    maxVal = tfid_rawEmails_dtm.max()
-    tfid_rawEmails_dtm = tfid_rawEmails_dtm/float(maxVal)
-    maxVal = vect_rawEmails_dtm.max()
+    #maxVal = vect_rawEmails_dtm.max()
+    #vect_rawEmails_dtm = vect_rawEmails_dtm/float(maxVal)    
+    #maxVal = vect_cleanEmails_dtm.max()
+    #vect_cleanEmails_dtm = vect_cleanEmails_dtm/float(maxVal)
     
-    maxVal = vect_cleanEmails_dtm.max()
-    vect_cleanEmails_dtm = vect_cleanEmails_dtm/float(maxVal)
-    maxVal = tfid_cleanEmails_dtm.max()
-    tfid_cleanEmails_dtm = tfid_cleanEmails_dtm/float(maxVal)
-    
+    # #####################################################
+    #               Combine TFIDF and CountVectorizer
+    # #####################################################
     # Concatonate the columns of the training and test set
-    rawEmails_dtm = hstack([vect_rawEmails_dtm, tfid_rawEmails_dtm])
-    cleanEmails_dtm = hstack([vect_cleanEmails_dtm, tfid_cleanEmails_dtm])
+    #rawEmails_dtm = hstack([vect_rawEmails_dtm, tfid_rawEmails_dtm])
+    #cleanEmails_dtm = hstack([vect_cleanEmails_dtm, tfid_cleanEmails_dtm])
     #rawEmails_train_dtm = hstack([vect_rawEmails_train_dtm, tfid_rawEmails_train_dtm])
     #rawEmails_test_dtm = hstack([vect_rawEmails_test_dtm, tfid_rawEmails_test_dtm])
     #rawEmails_train_dtm = hstack([vect_tfidf_rawEmails_train_dtm, hash_rawEmails_train_dtm])
@@ -184,7 +179,7 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     
     # This prints off indices of true values
     #print([i for i, x in enumerate(goodSentences_train) if x])
-    return rawEmails_dtm, cleanEmails_dtm, summaryList
+    return tfid_rawEmails_dtm, tfid_cleanEmails_dtm, summaryList
 
 #This should hold all the machine learning things
 def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):       
@@ -200,24 +195,25 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
     
     emails_results = clf.predict(emails_test_dtm)
     '''
-    '''
-    clf = svm.SVC(C=23.737374, cache_size=8000, class_weight=None, coef0=0.1,
-    decision_function_shape='ovr', degree=3, gamma=0.025040, kernel='rbf',
+    
+    rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails_dtm, goodSentences, random_state=1)
+    clf = svm.SVC(C=10, cache_size=8000, class_weight=None, coef0=0.1,
+    decision_function_shape='ovr', degree=3, gamma=0.050282828, kernel='rbf',
     max_iter=-1, probability=False, random_state=1, shrinking=True,
     tol=.01, verbose=False)
     print(clf.get_params())
     
-    clf.fit(emails_train_dtm, goodSentences_train)    
+    clf.fit(rawEmails_train, goodSentences_train)    
     
-    vect_tfidf_emails_results = clf.predict(emails_test_dtm)
+    vect_tfidf_emails_results = clf.predict(rawEmails_test)
     #print the accuracy is
     print('CountVectorizer + TFIDFVectorizer Results: ')
     print(metrics.accuracy_score(goodSentences_test, vect_tfidf_emails_results))    
     print(metrics.precision_recall_fscore_support(goodSentences_test, vect_tfidf_emails_results))    
     #This is a thing.  I am still uncertain how to use it
     print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
-    statsArray.append({'cAmount': 23.737374, 'gammaAmount': 0.025040, 'F1_Score': metrics.f1_score(goodSentences_test, vect_tfidf_emails_results)})
-    '''
+    statsArray.append({'cAmount': 10, 'gammaAmount': 0.050282828, 'F1_Score': metrics.f1_score(goodSentences_test, vect_tfidf_emails_results)})
+    
     
     # #########################################################################################
     #            Working Maching Learning, will be copied for threaded application            #
@@ -265,6 +261,7 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
         
     
     threads = []
+    '''
     for randomState in range(1, 11):
         for cAmount in np.linspace(10, 40, 100):
                 for gammaAmount in np.linspace(.001, .12, 100):  
@@ -419,14 +416,12 @@ def main():
                 dfNoStop = pd.concat([df, dfNoStopTemp], ignore_index=True, sort=False)
     
     
-    NICE = pd.DataFrame.from_dict(startwords)
-    NICE.to_csv('startWords.csv', encoding='utf-8', index=False)
     # #################################################################
     #            Modify Raw data into modified data vector            #
     #                     (will be normalized later)                  #
     # #################################################################    
     print('DONE')
-    '''
+    
     rawEmails_dtm, cleanEmails_dtm, goodSentences = ModifyRawData(dfNoStop, dfNoStop[dfNoStop['FileName'].str.contains('summary')==False], dfNoStop[dfNoStop['FileName'].str.contains('summary')], 
                         df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
                         
@@ -444,7 +439,7 @@ def main():
     #locStatsArray = locStatsArray.groupby(['cAmount', 'gammaAmount', 'randState', 'Learning_Type'])
     #print(locStatsArray)
     locStatsArray.to_csv('Output/output_' + str(end_time) + '.csv', encoding='utf-8', index=False)
-    '''
+    
 main()
 
 #Emails prefaced by “from email:”
