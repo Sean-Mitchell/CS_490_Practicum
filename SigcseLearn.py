@@ -21,8 +21,8 @@ statsArray = []
 # Read in all the txt Files
 def LoopThroughDocuments(filePath, folderName):
     fileNames= os.listdir(filePath)
-    dataframe = pd.DataFrame(columns=['FileName','CleanText', 'CleanTextNoPunc'])
-    dataframeNoStop = pd.DataFrame(columns=['FileName','CleanText', 'CleanTextNoPunc'])
+    dataframe = pd.DataFrame(columns=['FileName','CleanText', 'CleanTextNoPunc', 'FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence'])
+    dataframeNoStop = pd.DataFrame(columns=['FileName','CleanText', 'CleanTextNoPunc', 'FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence'])
     
     # Don't worry about reading files in if there is no summary atm
     if 'summary.txt' not in fileNames:
@@ -38,6 +38,7 @@ def LoopThroughDocuments(filePath, folderName):
         
         # Read file and make copy of the file
         rawText = f.read().lower()
+        f.close()
         RawTextNoStopWords = rawText + ' ' # this makes it a deep copy
 		
         
@@ -49,21 +50,49 @@ def LoopThroughDocuments(filePath, folderName):
         # remove new lines, split on strings that have a "." plus any white space, or split on ?!; or .* plus -(2 or more dashes) or . word whitespace
         rawText = re.split(r'\.\s+|[?!;]|\.*\-{2,}|\.\w\s|,\n+\s*', rawText)
         RawTextNoStopWords = re.split(r'\.\s+|[?!;]|\.*\-{2,}|\.\w\s|,\n+\s*', RawTextNoStopWords)
-        rawText = [string for string in rawText if ' ' in string]
-        RawTextNoStopWords = [string for string in RawTextNoStopWords if ' ' in string]
-        rawText = [string.strip() for string in rawText]
-        RawTextNoStopWords = [string.strip() for string in RawTextNoStopWords]
+        rawText = [string.strip() for string in rawText if ' ' in string]
+        RawTextNoStopWords = [string.strip() for string in RawTextNoStopWords if ' ' in string]
         rawText = [re.sub('[\n]', r'', string) for string in rawText] 
         RawTextNoStopWords = [re.sub('[\n]', r'', string) for string in RawTextNoStopWords]
-        f.close()
+        
+        isFirstRaw = np.zeros(len(rawText))
+        isFirstNoStop = np.zeros(len(RawTextNoStopWords))
+        isSecondRaw = np.zeros(len(rawText))
+        isSecondNoStop = np.zeros(len(RawTextNoStopWords))
+        isThirdRaw = np.zeros(len(rawText))
+        isThirdNoStop = np.zeros(len(RawTextNoStopWords))
+        isFourthRaw = np.zeros(len(rawText))
+        isFourthNoStop = np.zeros(len(RawTextNoStopWords))
+        isFifthRaw = np.zeros(len(rawText))
+        isFifthNoStop = np.zeros(len(RawTextNoStopWords))
+        
+        for count in range(1, 6):
+            if count == 1:
+                isFirstRaw[count - 1] = 1
+                isFirstNoStop[count - 1] = 1            
+            elif count == 2:
+                isSecondRaw[count - 1] = 1
+                isSecondNoStop[count - 1] = 1            
+            elif count == 3:
+                isThirdRaw[count - 1] = 1
+                isThirdNoStop[count - 1] = 1            
+            elif count == 4:
+                isFourthRaw[count - 1] = 1
+                isFourthNoStop[count - 1] = 1            
+            else:
+                isFifthRaw[count - 1] = 1
+                isFifthNoStop[count - 1] = 1
+        
+        
+        # Assign bit that states whether the sentence is the first, second, ... , fifth (We'll see if this makes a difference)
         
         # Assigns the summary into the dataframe
         if fileName == 'summary.txt':            
             
             # Create dataframe and concat it to what exists (if something exists)
             # Add all sentences into dataframe
-            textObject = {'FileName' : folderName + '__summary', 'CleanText' : rawText , 'CleanTextNoPunc' : ''}    
-            textObjectNoStopWords = {'FileName' : folderName + '__summary', 'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : ''}  
+            textObject = {'FileName' : folderName + '__summary', 'CleanText' : rawText , 'CleanTextNoPunc' : '', 'FirstSentence': isFirstRaw, 'SecondSentence': isSecondRaw, 'ThirdSentence': isThirdRaw, 'FourthSentence': isFourthRaw, 'FifthSentence': isFifthRaw}    
+            textObjectNoStopWords = {'FileName' : folderName + '__summary', 'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : '', 'FirstSentence': isFirstNoStop, 'SecondSentence': isSecondNoStop, 'ThirdSentence': isThirdNoStop, 'FourthSentence': isFourthNoStop, 'FifthSentence': isFifthNoStop}  
                 
         # Checks to see if the text file is a number and if it is read it into the main dataframe
         elif fileName.split('.')[0].isnumeric():
@@ -71,8 +100,8 @@ def LoopThroughDocuments(filePath, folderName):
             # Create dataframe and concat it to what exists (if something exists)
             # Add all sentences into dataframe
             # if rawtext is 0 for some reason replace with empty strings
-            textObject = {'FileName' : folderName + '__' + str(counter), 'CleanText' : rawText , 'CleanTextNoPunc' : ''}   
-            textObjectNoStopWords = {'FileName' : folderName + '__' + str(counter),'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : ''}
+            textObject = {'FileName' : folderName + '__' + str(counter), 'CleanText' : rawText , 'CleanTextNoPunc' : '', 'FirstSentence': isFirstRaw, 'SecondSentence': isSecondRaw, 'ThirdSentence': isThirdRaw, 'FourthSentence': isFourthRaw, 'FifthSentence': isFifthRaw}   
+            textObjectNoStopWords = {'FileName' : folderName + '__' + str(counter),'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : '', 'FirstSentence': isFirstNoStop, 'SecondSentence': isSecondNoStop, 'ThirdSentence': isThirdNoStop, 'FourthSentence': isFourthNoStop, 'FifthSentence': isFifthNoStop}
             counter += 1
 
         if dataframeNoStop.empty:
@@ -163,8 +192,8 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     # Concatonate the columns of the training and test set
     #rawEmails_dtm = hstack([vect_rawEmails_dtm, tfid_rawEmails_dtm])
     #cleanEmails_dtm = hstack([vect_cleanEmails_dtm, tfid_cleanEmails_dtm])
-    #rawEmails_train_dtm = hstack([vect_rawEmails_train_dtm, tfid_rawEmails_train_dtm])
-    #rawEmails_test_dtm = hstack([vect_rawEmails_test_dtm, tfid_rawEmails_test_dtm])
+    rawEmails_dtm = hstack([tfid_rawEmails_dtm, rawDataFrame['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence']])
+    cleanEmails_dtm = hstack([tfid_cleanEmails_dtm, cleanedDataFrame['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence']])
     #rawEmails_train_dtm = hstack([vect_tfidf_rawEmails_train_dtm, hash_rawEmails_train_dtm])
     #rawEmails_test_dtm = hstack([vect_tfidf_rawEmails_test_dtm, hash_rawEmails_test_dtm])
     
@@ -179,7 +208,7 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     
     # This prints off indices of true values
     #print([i for i, x in enumerate(goodSentences_train) if x])
-    return tfid_rawEmails_dtm, tfid_cleanEmails_dtm, summaryList
+    return rawEmails_dtm, cleanEmails_dtm, summaryList
 
 #This should hold all the machine learning things
 def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):       
@@ -196,7 +225,7 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
     emails_results = clf.predict(emails_test_dtm)
     '''
     
-    rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails_dtm, goodSentences, random_state=1)
+    rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails_dtm, goodSentences, random_state=7)
     clf = svm.SVC(C=10, cache_size=8000, class_weight=None, coef0=0.1,
     decision_function_shape='ovr', degree=3, gamma=0.050282828, kernel='rbf',
     max_iter=-1, probability=False, random_state=1, shrinking=True,
@@ -263,8 +292,8 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
     threads = []
     '''
     for randomState in range(1, 11):
-        for cAmount in np.linspace(10, 40, 100):
-                for gammaAmount in np.linspace(.001, .12, 100):  
+        for cAmount in np.linspace(1, 100, 100):
+                for gammaAmount in np.linspace(.001, .2, 100):  
                     threads.append(Thread(target=LearningThread, args=(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, cAmount, gammaAmount)))
                     threads[-1].start()
     
