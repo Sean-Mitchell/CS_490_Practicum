@@ -21,8 +21,8 @@ statsArray = []
 # Read in all the txt Files
 def LoopThroughDocuments(filePath, folderName):
     fileNames= os.listdir(filePath)
-    dataframe = pd.DataFrame(columns=['FileName','CleanText', 'CleanTextNoPunc', 'FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence'])
-    dataframeNoStop = pd.DataFrame(columns=['FileName','CleanText', 'CleanTextNoPunc', 'FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence'])
+    dataframe = pd.DataFrame(columns=['FileName','CleanText', 'CleanTextNoPunc', 'FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence', 'SentenceLengthBeforeStop'])
+    dataframeNoStop = pd.DataFrame(columns=['FileName','CleanText', 'CleanTextNoPunc', 'FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence', 'SentenceLengthBeforeStop'])
     
     # Don't worry about reading files in if there is no summary atm
     if 'summary.txt' not in fileNames:
@@ -55,7 +55,18 @@ def LoopThroughDocuments(filePath, folderName):
         rawText = [re.sub('[\n]', r'', string) for string in rawText] 
         RawTextNoStopWords = [re.sub('[\n]', r'', string) for string in RawTextNoStopWords]
         
-        
+		# #########################################################################################
+		#                		       Get Word Count Of Sentence			                      #
+		# #########################################################################################
+		sentenceLength = []
+		
+        for sentenceCount in len(rawText):
+			sentenceLength.append(len(rawText[sentenceCount].split()))
+		
+		
+		# #########################################################################################
+		#                       Get sentence relative position in the document                    #
+		# #########################################################################################
         isFirstRaw = np.zeros(len(rawText))
         isSecondRaw = np.zeros(len(rawText))
         isThirdRaw = np.zeros(len(rawText))
@@ -123,8 +134,8 @@ def LoopThroughDocuments(filePath, folderName):
             
             # Create dataframe and concat it to what exists (if something exists)
             # Add all sentences into dataframe
-            textObject = {'FileName' : folderName + '__summary', 'CleanText' : rawText , 'CleanTextNoPunc' : '', 'FirstSentence': isFirstRaw, 'SecondSentence': isSecondRaw, 'ThirdSentence': isThirdRaw, 'FourthSentence': isFourthRaw, 'FifthSentence': isFifthRaw}    
-            textObjectNoStopWords = {'FileName' : folderName + '__summary', 'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : '', 'FirstSentence': isFirstNoStop, 'SecondSentence': isSecondNoStop, 'ThirdSentence': isThirdNoStop, 'FourthSentence': isFourthNoStop, 'FifthSentence': isFifthNoStop}  
+            textObject = {'FileName' : folderName + '__summary', 'CleanText' : rawText , 'CleanTextNoPunc' : '', 'FirstSentence': isFirstRaw, 'SecondSentence': isSecondRaw, 'ThirdSentence': isThirdRaw, 'FourthSentence': isFourthRaw, 'FifthSentence': isFifthRaw, 'SentenceLengthBeforeStop': sentenceLength}    
+            textObjectNoStopWords = {'FileName' : folderName + '__summary', 'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : '', 'FirstSentence': isFirstNoStop, 'SecondSentence': isSecondNoStop, 'ThirdSentence': isThirdNoStop, 'FourthSentence': isFourthNoStop, 'FifthSentence': isFifthNoStop, 'SentenceLengthBeforeStop': sentenceLength}  
                 
         # Checks to see if the text file is a number and if it is read it into the main dataframe
         elif fileName.split('.')[0].isnumeric():
@@ -132,8 +143,8 @@ def LoopThroughDocuments(filePath, folderName):
             # Create dataframe and concat it to what exists (if something exists)
             # Add all sentences into dataframe
             # if rawtext is 0 for some reason replace with empty strings
-            textObject = {'FileName' : folderName + '__' + str(counter), 'CleanText' : rawText , 'CleanTextNoPunc' : '', 'FirstSentence': isFirstRaw, 'SecondSentence': isSecondRaw, 'ThirdSentence': isThirdRaw, 'FourthSentence': isFourthRaw, 'FifthSentence': isFifthRaw}   
-            textObjectNoStopWords = {'FileName' : folderName + '__' + str(counter),'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : '', 'FirstSentence': isFirstNoStop, 'SecondSentence': isSecondNoStop, 'ThirdSentence': isThirdNoStop, 'FourthSentence': isFourthNoStop, 'FifthSentence': isFifthNoStop}
+            textObject = {'FileName' : folderName + '__' + str(counter), 'CleanText' : rawText , 'CleanTextNoPunc' : '', 'FirstSentence': isFirstRaw, 'SecondSentence': isSecondRaw, 'ThirdSentence': isThirdRaw, 'FourthSentence': isFourthRaw, 'FifthSentence': isFifthRaw, 'SentenceLengthBeforeStop': sentenceLength}   
+            textObjectNoStopWords = {'FileName' : folderName + '__' + str(counter),'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : '', 'FirstSentence': isFirstNoStop, 'SecondSentence': isSecondNoStop, 'ThirdSentence': isThirdNoStop, 'FourthSentence': isFourthNoStop, 'FifthSentence': isFifthNoStop, 'SentenceLengthBeforeStop': sentenceLength}
             counter += 1
 
         if dataframeNoStop.empty:
@@ -219,8 +230,8 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #cleanEmails_dtm = hstack([vect_cleanEmails_dtm, tfid_cleanEmails_dtm])    
     #rawEmails_train_dtm = hstack([vect_tfidf_rawEmails_train_dtm, hash_rawEmails_train_dtm])
     #rawEmails_test_dtm = hstack([vect_tfidf_rawEmails_test_dtm, hash_rawEmails_test_dtm])
-    rawEmails_dtm = hstack([tfid_rawEmails_dtm, rawEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence']]])
-    cleanEmails_dtm = hstack([tfid_cleanEmails_dtm, cleanedEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence']]])
+    rawEmails_dtm = hstack([tfid_rawEmails_dtm, rawEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence', 'SentenceLengthBeforeStop']]])
+    cleanEmails_dtm = hstack([tfid_cleanEmails_dtm, cleanedEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence', 'SentenceLengthBeforeStop']]])
     
     #Double Check shapes
     #print(rawEmails_train_dtm)
