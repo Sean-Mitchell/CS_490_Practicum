@@ -66,22 +66,53 @@ def LoopThroughDocuments(filePath, folderName):
         isFifthRaw = np.zeros(len(rawText))
         isFifthNoStop = np.zeros(len(RawTextNoStopWords))
         
-        for count in range(1, 6):
-            if count == 1:
-                isFirstRaw[count - 1] = 1
-                isFirstNoStop[count - 1] = 1            
-            elif count == 2:
-                isSecondRaw[count - 1] = 1
-                isSecondNoStop[count - 1] = 1            
-            elif count == 3:
-                isThirdRaw[count - 1] = 1
-                isThirdNoStop[count - 1] = 1            
-            elif count == 4:
-                isFourthRaw[count - 1] = 1
-                isFourthNoStop[count - 1] = 1            
-            else:
-                isFifthRaw[count - 1] = 1
-                isFifthNoStop[count - 1] = 1
+        # Set up sentence locality count
+        if len(rawText) < 5:
+            for count in range(0, len(rawText)):
+                if count == 1:
+                    isFirstRaw[count] = 1          
+                elif count == 2:
+                    isSecondRaw[count] = 1          
+                elif count == 3:
+                    isThirdRaw[count] = 1          
+                else:
+                    isFifthRaw[count] = 1
+        
+        else:
+            for count in range(0, 5):
+                if count == 1:
+                    isFirstRaw[count] = 1          
+                elif count == 2:
+                    isSecondRaw[count] = 1         
+                elif count == 3:
+                    isThirdRaw[count] = 1          
+                elif count == 4:
+                    isFourthRaw[count] = 1           
+                else:
+                    isFifthRaw[count] = 1
+                    
+        if len(RawTextNoStopWords) < 5:
+            for count in range(0, len(RawTextNoStopWords)):
+                if count == 1:
+                    isFirstNoStop[count] = 1            
+                elif count == 2:
+                    isSecondNoStop[count] = 1            
+                elif count == 3:
+                    isThirdNoStop[count] = 1             
+                else:
+                    isFifthNoStop[count] = 1        
+        else:
+            for count in range(0, 5):
+                if count == 1:
+                    isFirstNoStop[count] = 1            
+                elif count == 2:
+                    isSecondNoStop[count] = 1            
+                elif count == 3:
+                    isThirdNoStop[count] = 1            
+                elif count == 4:
+                    isFourthNoStop[count] = 1            
+                else:
+                    isFifthNoStop[count] = 1
         
         
         # Assign bit that states whether the sentence is the first, second, ... , fifth (We'll see if this makes a difference)
