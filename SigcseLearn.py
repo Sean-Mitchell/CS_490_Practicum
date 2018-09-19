@@ -22,9 +22,9 @@ statsArray = []
 def LoopThroughDocuments(filePath, folderName):
     fileNames= os.listdir(filePath)
     dataframe = pd.DataFrame(columns=['FileName','CleanText', 'CleanTextNoPunc', 'FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-		'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop'])
+        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop'])
     dataframeNoStop = pd.DataFrame(columns=['FileName','CleanText', 'CleanTextNoPunc', 'FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-		'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop'])
+        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop'])
     
     # Don't worry about reading files in if there is no summary atm
     if 'summary.txt' not in fileNames:
@@ -42,7 +42,7 @@ def LoopThroughDocuments(filePath, folderName):
         rawText = f.read().lower()
         f.close()
         RawTextNoStopWords = rawText + ' ' # this makes it a deep copy
-		
+        
         
         # Remove Stop Words
         for stopword in stop_words.ENGLISH_STOP_WORDS:
@@ -57,19 +57,26 @@ def LoopThroughDocuments(filePath, folderName):
         rawText = [re.sub('[\n]', r'', string) for string in rawText] 
         RawTextNoStopWords = [re.sub('[\n]', r'', string) for string in RawTextNoStopWords]
         
-		# #########################################################################################
-		#                		       Get Word Count Of Sentence			                      #
-		# #########################################################################################
-		sentenceLength = []
-		
-		
-        for sentenceCount in len(rawText):
-			sentenceLength.append(len(rawText[sentenceCount].split()))
-		
-		
-		# #########################################################################################
-		#                       Get sentence relative position in the document                    #
-		# #########################################################################################
+        # #########################################################################################
+        #                               Get Word Count Of Sentence                                  #
+        # #########################################################################################
+        RawSentenceLength = []
+        CleanSentenceLength = []
+        
+        for sentenceCount in range(0, len(rawText)):
+            RawSentenceLength.append(len(rawText[sentenceCount].split()))
+
+        for sentenceCount in range(0, len(RawTextNoStopWords)):
+            CleanSentenceLength.append(len(RawTextNoStopWords[sentenceCount].split()))
+        
+        maxVal = max(RawSentenceLength)
+        normalized_RawSentenceLength = [x / float(maxVal) for x in RawSentenceLength]
+        maxVal = max(CleanSentenceLength)
+        normalized_CleanSentenceLength = [x / float(maxVal) for x in CleanSentenceLength]
+        
+        # #########################################################################################
+        #                       Get sentence relative position in the document                    #
+        # #########################################################################################
         isFirstRaw = np.zeros(len(rawText))
         isSecondRaw = np.zeros(len(rawText))
         isThirdRaw = np.zeros(len(rawText))
@@ -80,117 +87,117 @@ def LoopThroughDocuments(filePath, folderName):
         isThirdNoStop = np.zeros(len(RawTextNoStopWords))
         isFourthNoStop = np.zeros(len(RawTextNoStopWords))
         isFifthNoStop = np.zeros(len(RawTextNoStopWords))
-		
-		RawTopTwoSentence = np.zeros(len(rawText))
-		RawTopThreeSentence = np.zeros(len(rawText))
-		RawTopFourSentence = np.zeros(len(rawText))
-		RawTopFiveSentence = np.zeros(len(rawText))
-		CleanTopTwoSentence = np.zeros(len(RawTextNoStopWords))
-		CleanTopThreeSentence = np.zeros(len(RawTextNoStopWords))
-		CleanTopFourSentence = np.zeros(len(RawTextNoStopWords))
-		CleanTopFiveSentence = np.zeros(len(RawTextNoStopWords))
+        
+        RawTopTwoSentence = np.zeros(len(rawText))
+        RawTopThreeSentence = np.zeros(len(rawText))
+        RawTopFourSentence = np.zeros(len(rawText))
+        RawTopFiveSentence = np.zeros(len(rawText))
+        CleanTopTwoSentence = np.zeros(len(RawTextNoStopWords))
+        CleanTopThreeSentence = np.zeros(len(RawTextNoStopWords))
+        CleanTopFourSentence = np.zeros(len(RawTextNoStopWords))
+        CleanTopFiveSentence = np.zeros(len(RawTextNoStopWords))
         
         # Set up sentence locality count
         if len(rawText) < 5:
             for count in range(0, len(rawText)):
                 if count == 0:
                     isFirstRaw[count] = 1   
-					RawTopTwoSentence[count] = 1 
-					RawTopThreeSentence[count] = 1 
-					RawTopFourSentence[count] = 1 
-					RawTopFiveSentence[count] = 1 
+                    RawTopTwoSentence[count] = 1 
+                    RawTopThreeSentence[count] = 1 
+                    RawTopFourSentence[count] = 1 
+                    RawTopFiveSentence[count] = 1 
                 elif count == 1:
                     isSecondRaw[count] = 1  
-					RawTopTwoSentence[count] = 1 
-					RawTopThreeSentence[count] = 1 
-					RawTopFourSentence[count] = 1 
-					RawTopFiveSentence[count] = 1         
+                    RawTopTwoSentence[count] = 1 
+                    RawTopThreeSentence[count] = 1 
+                    RawTopFourSentence[count] = 1 
+                    RawTopFiveSentence[count] = 1         
                 elif count == 2:
                     isThirdRaw[count] = 1  
-					RawTopThreeSentence[count] = 1 
-					RawTopFourSentence[count] = 1 
-					RawTopFiveSentence[count] = 1         
+                    RawTopThreeSentence[count] = 1 
+                    RawTopFourSentence[count] = 1 
+                    RawTopFiveSentence[count] = 1         
                 else:
                     isFourthRaw[count] = 1
-					RawTopFourSentence[count] = 1 
-					RawTopFiveSentence[count] = 1   
+                    RawTopFourSentence[count] = 1 
+                    RawTopFiveSentence[count] = 1   
         
         else:
             for count in range(0, 5):
                 if count == 0:
                     isFirstRaw[count] = 1 
-					RawTopTwoSentence[count] = 1 
-					RawTopThreeSentence[count] = 1 
-					RawTopFourSentence[count] = 1 
-					RawTopFiveSentence[count] = 1          
+                    RawTopTwoSentence[count] = 1 
+                    RawTopThreeSentence[count] = 1 
+                    RawTopFourSentence[count] = 1 
+                    RawTopFiveSentence[count] = 1          
                 elif count == 1:
                     isSecondRaw[count] = 1  
-					RawTopTwoSentence[count] = 1 
-					RawTopThreeSentence[count] = 1 
-					RawTopFourSentence[count] = 1 
-					RawTopFiveSentence[count] = 1        
+                    RawTopTwoSentence[count] = 1 
+                    RawTopThreeSentence[count] = 1 
+                    RawTopFourSentence[count] = 1 
+                    RawTopFiveSentence[count] = 1        
                 elif count == 2:
                     isThirdRaw[count] = 1  
-					RawTopThreeSentence[count] = 1 
-					RawTopFourSentence[count] = 1 
-					RawTopFiveSentence[count] = 1        
+                    RawTopThreeSentence[count] = 1 
+                    RawTopFourSentence[count] = 1 
+                    RawTopFiveSentence[count] = 1        
                 elif count == 3:
                     isFourthRaw[count] = 1    
-					RawTopFourSentence[count] = 1 
-					RawTopFiveSentence[count] = 1        
+                    RawTopFourSentence[count] = 1 
+                    RawTopFiveSentence[count] = 1        
                 else:
                     isFifthRaw[count] = 1
-					RawTopFiveSentence[count] = 1  
+                    RawTopFiveSentence[count] = 1  
                     
         if len(RawTextNoStopWords) < 5:
             for count in range(0, len(RawTextNoStopWords)):
                 if count == 0:
                     isFirstNoStop[count] = 1 
-					CleanTopTwoSentence[count] = 1	
-					CleanTopThreeSentence[count] = 1
-					CleanTopFourSentence[count] = 1
-					CleanTopFiveSentence[count] = 1
+                    CleanTopTwoSentence[count] = 1    
+                    CleanTopThreeSentence[count] = 1
+                    CleanTopFourSentence[count] = 1
+                    CleanTopFiveSentence[count] = 1
                 elif count == 1:
                     isSecondNoStop[count] = 1 
-					CleanTopTwoSentence[count] = 1	
-					CleanTopThreeSentence[count] = 1
-					CleanTopFourSentence[count] = 1
-					CleanTopFiveSentence[count] = 1           
+                    CleanTopTwoSentence[count] = 1    
+                    CleanTopThreeSentence[count] = 1
+                    CleanTopFourSentence[count] = 1
+                    CleanTopFiveSentence[count] = 1           
                 elif count == 2:
                     isThirdNoStop[count] = 1 
-					CleanTopThreeSentence[count] = 1
-					CleanTopFourSentence[count] = 1
-					CleanTopFiveSentence[count] = 1              
+                    CleanTopThreeSentence[count] = 1
+                    CleanTopFourSentence[count] = 1
+                    CleanTopFiveSentence[count] = 1              
                 else:
                     isFourthNoStop[count] = 1 
-					CleanTopFourSentence[count] = 1
-					CleanTopFiveSentence[count] = 1        
+                    CleanTopFourSentence[count] = 1
+                    CleanTopFiveSentence[count] = 1        
         else:
             for count in range(0, 5):
                 if count == 0:
                     isFirstNoStop[count] = 1 
-					CleanTopTwoSentence[count] = 1	
-					CleanTopThreeSentence[count] = 1
-					CleanTopFourSentence[count] = 1
-					CleanTopFiveSentence[count] = 1           
+                    CleanTopTwoSentence[count] = 1    
+                    CleanTopThreeSentence[count] = 1
+                    CleanTopFourSentence[count] = 1
+                    CleanTopFiveSentence[count] = 1           
                 elif count == 1:
                     isSecondNoStop[count] = 1
-					CleanTopTwoSentence[count] = 1	
-					CleanTopThreeSentence[count] = 1
-					CleanTopFourSentence[count] = 1
-					CleanTopFiveSentence[count] = 1            
+                    CleanTopTwoSentence[count] = 1    
+                    CleanTopThreeSentence[count] = 1
+                    CleanTopFourSentence[count] = 1
+                    CleanTopFiveSentence[count] = 1            
                 elif count == 2:
                     isThirdNoStop[count] = 1  
-					CleanTopThreeSentence[count] = 1
-					CleanTopFourSentence[count] = 1
-					CleanTopFiveSentence[count] = 1           
+                    CleanTopThreeSentence[count] = 1
+                    CleanTopFourSentence[count] = 1
+                    CleanTopFiveSentence[count] = 1           
                 elif count == 3:
                     isFourthNoStop[count] = 1 
-					CleanTopFourSentence[count] = 1
-					CleanTopFiveSentence[count] = 1           
+                    CleanTopFourSentence[count] = 1
+                    CleanTopFiveSentence[count] = 1           
                 else:
                     isFifthNoStop[count] = 1
-					CleanTopFiveSentence[count] = 1    
+                    CleanTopFiveSentence[count] = 1    
         
         
         # Assign bit that states whether the sentence is the first, second, ... , fifth (We'll see if this makes a difference)
@@ -201,11 +208,11 @@ def LoopThroughDocuments(filePath, folderName):
             # Create dataframe and concat it to what exists (if something exists)
             # Add all sentences into dataframe
             textObject = {'FileName' : folderName + '__summary', 'CleanText' : rawText , 'CleanTextNoPunc' : '', 'FirstSentence': isFirstRaw, 'SecondSentence': isSecondRaw, 
-				'ThirdSentence': isThirdRaw, 'FourthSentence': isFourthRaw, 'FifthSentence': isFifthRaw, 'TopOneSentence': isFirstNoStop, 'TopTwoSentence': RawTopTwoSentence, 'TopThreeSentence': RawTopThreeSentence,
-				'TopFourSentence': RawTopFourSentence, 'TopFiveSentence': RawTopFiveSentence, 'SentenceLengthBeforeStop': sentenceLength}    
+                'ThirdSentence': isThirdRaw, 'FourthSentence': isFourthRaw, 'FifthSentence': isFifthRaw, 'TopOneSentence': isFirstRaw, 'TopTwoSentence': RawTopTwoSentence, 'TopThreeSentence': RawTopThreeSentence,
+                'TopFourSentence': RawTopFourSentence, 'TopFiveSentence': RawTopFiveSentence, 'SentenceLengthBeforeStop': normalized_RawSentenceLength}    
             textObjectNoStopWords = {'FileName' : folderName + '__summary', 'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : '', 'FirstSentence': isFirstNoStop, 'SecondSentence': isSecondNoStop, 
-				'ThirdSentence': isThirdNoStop, 'FourthSentence': isFourthNoStop, 'FifthSentence': isFifthNoStop, 'TopOneSentence': isFirstNoStop, 'TopTwoSentence': CleanTopTwoSentence, 'TopThreeSentence': CleanTopThreeSentence,
-				'TopFourSentence': CleanTopFourSentence, 'TopFiveSentence': CleanTopFiveSentence, 'SentenceLengthBeforeStop': sentenceLength}  
+                'ThirdSentence': isThirdNoStop, 'FourthSentence': isFourthNoStop, 'FifthSentence': isFifthNoStop, 'TopOneSentence': isFirstNoStop, 'TopTwoSentence': CleanTopTwoSentence, 'TopThreeSentence': CleanTopThreeSentence,
+                'TopFourSentence': CleanTopFourSentence, 'TopFiveSentence': CleanTopFiveSentence, 'SentenceLengthBeforeStop': normalized_CleanSentenceLength}  
                 
         # Checks to see if the text file is a number and if it is read it into the main dataframe
         elif fileName.split('.')[0].isnumeric():
@@ -214,18 +221,18 @@ def LoopThroughDocuments(filePath, folderName):
             # Add all sentences into dataframe
             # if rawtext is 0 for some reason replace with empty strings
             textObject = {'FileName' : folderName + '__' + str(counter), 'CleanText' : rawText , 'CleanTextNoPunc' : '', 'FirstSentence': isFirstRaw, 'SecondSentence': isSecondRaw, 
-				'ThirdSentence': isThirdRaw, 'FourthSentence': isFourthRaw, 'FifthSentence': isFifthRaw, 'TopOneSentence': isFirstNoStop, 'TopTwoSentence': RawTopTwoSentence, 'TopThreeSentence': RawTopThreeSentence,
-				'TopFourSentence': RawTopFourSentence, 'TopFiveSentence': RawTopFiveSentence, 'SentenceLengthBeforeStop': sentenceLength}   
+                'ThirdSentence': isThirdRaw, 'FourthSentence': isFourthRaw, 'FifthSentence': isFifthRaw, 'TopOneSentence': isFirstRaw, 'TopTwoSentence': RawTopTwoSentence, 'TopThreeSentence': RawTopThreeSentence,
+                'TopFourSentence': RawTopFourSentence, 'TopFiveSentence': RawTopFiveSentence, 'SentenceLengthBeforeStop': normalized_RawSentenceLength}   
             textObjectNoStopWords = {'FileName' : folderName + '__' + str(counter),'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : '', 'FirstSentence': isFirstNoStop, 'SecondSentence': isSecondNoStop, 
-				'ThirdSentence': isThirdNoStop, 'FourthSentence': isFourthNoStop, 'FifthSentence': isFifthNoStop, 'TopOneSentence': isFirstNoStop, 'TopTwoSentence': CleanTopTwoSentence, 'TopThreeSentence': CleanTopThreeSentence,
-				'TopFourSentence': CleanTopFourSentence, 'TopFiveSentence': CleanTopFiveSentence, 'SentenceLengthBeforeStop': sentenceLength}
+                'ThirdSentence': isThirdNoStop, 'FourthSentence': isFourthNoStop, 'FifthSentence': isFifthNoStop, 'TopOneSentence': isFirstNoStop, 'TopTwoSentence': CleanTopTwoSentence, 'TopThreeSentence': CleanTopThreeSentence,
+                'TopFourSentence': CleanTopFourSentence, 'TopFiveSentence': CleanTopFiveSentence, 'SentenceLengthBeforeStop': normalized_CleanSentenceLength}
             counter += 1
 
         if dataframeNoStop.empty:
-            dataframeNoStop = pd.DataFrame.from_dict(textObjectNoStopWords)	
+            dataframeNoStop = pd.DataFrame.from_dict(textObjectNoStopWords)    
         else:
             dataframeNoStop = pd.concat([dataframeNoStop, pd.DataFrame.from_dict(textObjectNoStopWords)], ignore_index=True, sort=False)
-			
+            
         if dataframe.empty:
             dataframe = pd.DataFrame.from_dict(textObject)
         else:
@@ -295,10 +302,6 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #vect_rawEmails_dtm = vect_rawEmails_dtm/float(maxVal)    
     #maxVal = vect_cleanEmails_dtm.max()
     #vect_cleanEmails_dtm = vect_cleanEmails_dtm/float(maxVal)
-    maxVal = rawEmails['SentenceLengthBeforeStop'].max()
-    normalized_RawSentenceLength = rawEmails['SentenceLengthBeforeStop']/float(maxVal)  
-    maxVal = rawEmails['SentenceLengthBeforeStop'].max()
-    normalized_CleanSentenceLength = rawEmails['SentenceLengthBeforeStop']/float(maxVal)  
     
     # #####################################################
     #               Combine TFIDF and CountVectorizer
@@ -309,13 +312,10 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #rawEmails_train_dtm = hstack([vect_tfidf_rawEmails_train_dtm, hash_rawEmails_train_dtm])
     #rawEmails_test_dtm = hstack([vect_tfidf_rawEmails_test_dtm, hash_rawEmails_test_dtm])
     rawEmails_dtm = hstack([tfid_rawEmails_dtm, rawEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-		'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence']]])
+        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop']]])
     cleanEmails_dtm = hstack([tfid_cleanEmails_dtm, cleanedEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-		'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence']]])
+        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop']]])
     
-	rawEmails_dtm = hstack([rawEmails_dtm, normalized_RawSentenceLength])
-	cleanEmails_dtm = hstack([cleanEmails_dtm, normalized_CleanSentenceLength])
-	
     #Double Check shapes
     #print(rawEmails_train_dtm)
     #print(rawEmails_train_dtm.shape)
@@ -343,7 +343,7 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
     
     emails_results = clf.predict(emails_test_dtm)
     '''
-    '''
+    
     rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails_dtm, goodSentences, random_state=7)
     clf = svm.SVC(C=10, cache_size=8000, class_weight=None, coef0=0.1,
     decision_function_shape='ovr', degree=3, gamma=0.050282828, kernel='rbf',
@@ -361,7 +361,7 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
     #This is a thing.  I am still uncertain how to use it
     print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
     statsArray.append({'cAmount': 10, 'gammaAmount': 0.050282828, 'F1_Score': metrics.f1_score(goodSentences_test, vect_tfidf_emails_results)})
-    '''
+    
     
     # #########################################################################################
     #            Working Maching Learning, will be copied for threaded application            #
@@ -409,7 +409,7 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
         
     
     threads = []
-    
+    '''
     for randomState in range(1, 11):
         for cAmount in np.linspace(1, 100, 100):
                 for gammaAmount in np.linspace(.001, .2, 100):  
