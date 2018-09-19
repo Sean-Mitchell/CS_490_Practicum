@@ -295,6 +295,10 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #vect_rawEmails_dtm = vect_rawEmails_dtm/float(maxVal)    
     #maxVal = vect_cleanEmails_dtm.max()
     #vect_cleanEmails_dtm = vect_cleanEmails_dtm/float(maxVal)
+    maxVal = rawEmails['SentenceLengthBeforeStop'].max()
+    normalized_RawSentenceLength = rawEmails['SentenceLengthBeforeStop']/float(maxVal)  
+    maxVal = rawEmails['SentenceLengthBeforeStop'].max()
+    normalized_CleanSentenceLength = rawEmails['SentenceLengthBeforeStop']/float(maxVal)  
     
     # #####################################################
     #               Combine TFIDF and CountVectorizer
@@ -305,10 +309,13 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #rawEmails_train_dtm = hstack([vect_tfidf_rawEmails_train_dtm, hash_rawEmails_train_dtm])
     #rawEmails_test_dtm = hstack([vect_tfidf_rawEmails_test_dtm, hash_rawEmails_test_dtm])
     rawEmails_dtm = hstack([tfid_rawEmails_dtm, rawEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-		'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop']]])
+		'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence']]])
     cleanEmails_dtm = hstack([tfid_cleanEmails_dtm, cleanedEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-		'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop']]])
+		'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence']]])
     
+	rawEmails_dtm = hstack([rawEmails_dtm, normalized_RawSentenceLength])
+	cleanEmails_dtm = hstack([cleanEmails_dtm, normalized_CleanSentenceLength])
+	
     #Double Check shapes
     #print(rawEmails_train_dtm)
     #print(rawEmails_train_dtm.shape)
