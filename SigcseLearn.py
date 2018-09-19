@@ -55,61 +55,62 @@ def LoopThroughDocuments(filePath, folderName):
         rawText = [re.sub('[\n]', r'', string) for string in rawText] 
         RawTextNoStopWords = [re.sub('[\n]', r'', string) for string in RawTextNoStopWords]
         
+        
         isFirstRaw = np.zeros(len(rawText))
-        isFirstNoStop = np.zeros(len(RawTextNoStopWords))
         isSecondRaw = np.zeros(len(rawText))
-        isSecondNoStop = np.zeros(len(RawTextNoStopWords))
         isThirdRaw = np.zeros(len(rawText))
-        isThirdNoStop = np.zeros(len(RawTextNoStopWords))
         isFourthRaw = np.zeros(len(rawText))
-        isFourthNoStop = np.zeros(len(RawTextNoStopWords))
         isFifthRaw = np.zeros(len(rawText))
+        isFirstNoStop = np.zeros(len(RawTextNoStopWords))
+        isSecondNoStop = np.zeros(len(RawTextNoStopWords))
+        isThirdNoStop = np.zeros(len(RawTextNoStopWords))
+        isFourthNoStop = np.zeros(len(RawTextNoStopWords))
         isFifthNoStop = np.zeros(len(RawTextNoStopWords))
         
         # Set up sentence locality count
         if len(rawText) < 5:
             for count in range(0, len(rawText)):
-                if count == 1:
+                if count == 0:
                     isFirstRaw[count] = 1          
-                elif count == 2:
+                elif count == 1:
                     isSecondRaw[count] = 1          
-                elif count == 3:
+                elif count == 2:
                     isThirdRaw[count] = 1          
                 else:
-                    isFifthRaw[count] = 1
+                    isFourthRaw[count] = 1
         
         else:
             for count in range(0, 5):
-                if count == 1:
+                if count == 0:
                     isFirstRaw[count] = 1          
-                elif count == 2:
+                elif count == 1:
                     isSecondRaw[count] = 1         
-                elif count == 3:
+                elif count == 2:
                     isThirdRaw[count] = 1          
-                elif count == 4:
+                elif count == 3:
                     isFourthRaw[count] = 1           
                 else:
                     isFifthRaw[count] = 1
                     
         if len(RawTextNoStopWords) < 5:
             for count in range(0, len(RawTextNoStopWords)):
-                if count == 1:
+                if count == 0:
                     isFirstNoStop[count] = 1            
-                elif count == 2:
+                elif count == 1:
                     isSecondNoStop[count] = 1            
-                elif count == 3:
+                elif count == 2:
                     isThirdNoStop[count] = 1             
                 else:
-                    isFifthNoStop[count] = 1        
+                    isFourthNoStop[count] = 1        
         else:
             for count in range(0, 5):
-                if count == 1:
+                if count == 0:
                     isFirstNoStop[count] = 1            
-                elif count == 2:
+                elif count == 1:
                     isSecondNoStop[count] = 1            
-                elif count == 3:
+                elif count == 2:
                     isThirdNoStop[count] = 1            
-                elif count == 4:
+                elif count == 3:
                     isFourthNoStop[count] = 1            
                 else:
                     isFifthNoStop[count] = 1
@@ -164,13 +165,6 @@ def LoopThroughDocuments(filePath, folderName):
 # This includes matching up the summary sentences, vectorizing, and tfidf as well as assigning 
 def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawDataFrame, rawEmails, rawSummaries):
     
-    #print(rawEmails['CleanTextNoPunc'].head())
-    #print(rawSummaries.head())
-    #print(rawEmails.iloc[0]['CleanTextNoPunc'])
-    #print(rawEmails.shape)    
-    #countVectorText = vect.fit_transform(rawEmails['CleanTextNoPunc'])
-    #print(countVectorText.shape)
-    
     # Create Y column (this is what we will be working to get using the SVM later on).  It's the unknown we want to solve for later on    
     rawEmails.reset_index(drop = False) 
     cleanedEmails.reset_index(drop = False)
@@ -222,11 +216,11 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     # #####################################################
     # Concatonate the columns of the training and test set
     #rawEmails_dtm = hstack([vect_rawEmails_dtm, tfid_rawEmails_dtm])
-    #cleanEmails_dtm = hstack([vect_cleanEmails_dtm, tfid_cleanEmails_dtm])
-    rawEmails_dtm = hstack([tfid_rawEmails_dtm, rawDataFrame['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence']])
-    cleanEmails_dtm = hstack([tfid_cleanEmails_dtm, cleanedDataFrame['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence']])
+    #cleanEmails_dtm = hstack([vect_cleanEmails_dtm, tfid_cleanEmails_dtm])    
     #rawEmails_train_dtm = hstack([vect_tfidf_rawEmails_train_dtm, hash_rawEmails_train_dtm])
     #rawEmails_test_dtm = hstack([vect_tfidf_rawEmails_test_dtm, hash_rawEmails_test_dtm])
+    rawEmails_dtm = hstack([tfid_rawEmails_dtm, rawEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence']]])
+    cleanEmails_dtm = hstack([tfid_cleanEmails_dtm, cleanedEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence']]])
     
     #Double Check shapes
     #print(rawEmails_train_dtm)
@@ -255,7 +249,7 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
     
     emails_results = clf.predict(emails_test_dtm)
     '''
-    
+    '''
     rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails_dtm, goodSentences, random_state=7)
     clf = svm.SVC(C=10, cache_size=8000, class_weight=None, coef0=0.1,
     decision_function_shape='ovr', degree=3, gamma=0.050282828, kernel='rbf',
@@ -273,7 +267,7 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
     #This is a thing.  I am still uncertain how to use it
     print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
     statsArray.append({'cAmount': 10, 'gammaAmount': 0.050282828, 'F1_Score': metrics.f1_score(goodSentences_test, vect_tfidf_emails_results)})
-    
+    '''
     
     # #########################################################################################
     #            Working Maching Learning, will be copied for threaded application            #
@@ -321,7 +315,7 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
         
     
     threads = []
-    '''
+    
     for randomState in range(1, 11):
         for cAmount in np.linspace(1, 100, 100):
                 for gammaAmount in np.linspace(.001, .2, 100):  
@@ -480,8 +474,6 @@ def main():
     #            Modify Raw data into modified data vector            #
     #                     (will be normalized later)                  #
     # #################################################################    
-    print('DONE')
-    
     rawEmails_dtm, cleanEmails_dtm, goodSentences = ModifyRawData(dfNoStop, dfNoStop[dfNoStop['FileName'].str.contains('summary')==False], dfNoStop[dfNoStop['FileName'].str.contains('summary')], 
                         df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
                         
