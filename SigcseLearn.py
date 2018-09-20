@@ -16,6 +16,8 @@ from threading import Lock, Thread
 # Global variables for holding the percentages
 statsLock = Lock()
 statsArray = []
+queryTFIDF = pd.DataFrame(columns=['FileName', 'CleanText'])
+
 
 
 # Read in all the txt Files
@@ -29,7 +31,9 @@ def LoopThroughDocuments(filePath, folderName):
     # Don't worry about reading files in if there is no summary atm
     if 'summary.txt' not in fileNames:
         return dataframe, dataframeNoStop    
-        
+    
+    queryTFIDF
+    
     # used for index creation while adding into a new dataframe
     counter = 0
     
@@ -68,7 +72,8 @@ def LoopThroughDocuments(filePath, folderName):
 
         for sentenceCount in range(0, len(RawTextNoStopWords)):
             CleanSentenceLength.append(len(RawTextNoStopWords[sentenceCount].split()))
-        
+        if not RawSentenceLength:
+            continue
         maxVal = max(RawSentenceLength)
         normalized_RawSentenceLength = [x / float(maxVal) for x in RawSentenceLength]
         maxVal = max(CleanSentenceLength)
@@ -343,7 +348,7 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
     
     emails_results = clf.predict(emails_test_dtm)
     '''
-    
+    '''
     rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails_dtm, goodSentences, random_state=7)
     clf = svm.SVC(C=10, cache_size=8000, class_weight=None, coef0=0.1,
     decision_function_shape='ovr', degree=3, gamma=0.050282828, kernel='rbf',
@@ -361,7 +366,7 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
     #This is a thing.  I am still uncertain how to use it
     print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
     statsArray.append({'cAmount': 10, 'gammaAmount': 0.050282828, 'F1_Score': metrics.f1_score(goodSentences_test, vect_tfidf_emails_results)})
-    
+    #'''
     
     # #########################################################################################
     #            Working Maching Learning, will be copied for threaded application            #
@@ -409,7 +414,7 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
         
     
     threads = []
-    '''
+    
     for randomState in range(1, 11):
         for cAmount in np.linspace(1, 100, 100):
                 for gammaAmount in np.linspace(.001, .2, 100):  
@@ -551,7 +556,7 @@ def main():
     dfTemp = pd.DataFrame(columns=['FileName', 'CleanText', 'CleanTextNoPunc'])
     dfNoStopTemp = pd.DataFrame(columns=['FileName', 'TextNoStop', 'TextNoStopNoPunc'])
     filenames= os.listdir(filepath)
-    result = []
+    
     for filename in filenames: # loop through all the files and folders
     
         if os.path.isdir(os.path.join(os.path.abspath(filepath), filename)): # check whether the current object is a folder or not    
