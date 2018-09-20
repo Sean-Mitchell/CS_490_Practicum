@@ -16,7 +16,7 @@ from threading import Lock, Thread
 # Global variables for holding the percentages
 statsLock = Lock()
 statsArray = []
-queryTFIDF = pd.DataFrame(columns=['FileName', 'CleanText'])
+queryTFIDF = []
 
 
 
@@ -32,7 +32,7 @@ def LoopThroughDocuments(filePath, folderName):
     if 'summary.txt' not in fileNames:
         return dataframe, dataframeNoStop    
     
-    queryTFIDF
+    queryTFIDF.append(folderName)
     
     # used for index creation while adding into a new dataframe
     counter = 0
@@ -72,8 +72,11 @@ def LoopThroughDocuments(filePath, folderName):
 
         for sentenceCount in range(0, len(RawTextNoStopWords)):
             CleanSentenceLength.append(len(RawTextNoStopWords[sentenceCount].split()))
+        
+        # If there are no valid sentences in email, continue loop
         if not RawSentenceLength:
             continue
+        
         maxVal = max(RawSentenceLength)
         normalized_RawSentenceLength = [x / float(maxVal) for x in RawSentenceLength]
         maxVal = max(CleanSentenceLength)
@@ -272,20 +275,21 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     rawEmailsNoPunc = rawEmails['CleanTextNoPunc']
     cleanedEmailsNoPunc = cleanedEmails['CleanTextNoPunc']
     
-    rawVect = CountVectorizer(ngram_range=(1, 2))
     rawtfidfVect = TfidfVectorizer(ngram_range=(1, 2))
-    cleanVect = CountVectorizer(ngram_range=(1, 2))
     cleantfidfVect = TfidfVectorizer(ngram_range=(1, 2))
+    
+    #rawVect = CountVectorizer(ngram_range=(1, 2))
+    #cleanVect = CountVectorizer(ngram_range=(1, 2))
     #hashVect = HashingVectorizer(ngram_range=(1, 2))
     
     
     #Create Series that the countVectorizer can use to create training and testing sets
     # ### Note: fits better at the moment without hashVect commented out in case of need for later.
     
-    rawVect.fit(rawEmails['CleanTextNoPunc'])
     rawtfidfVect.fit(rawEmails['CleanTextNoPunc'])
-    cleanVect.fit(rawEmails['CleanTextNoPunc'])
     cleantfidfVect.fit(rawEmails['CleanTextNoPunc'])
+    #rawVect.fit(rawEmails['CleanTextNoPunc'])
+    #cleanVect.fit(rawEmails['CleanTextNoPunc'])
     #hashVect.fit(rawEmails)
     
     # fit and transform training into vector matrix
@@ -302,12 +306,6 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #tfid_cleanEmails_dtm = rawtfidfVect.transform(rawEmails_test)
     #hash_rawEmails_test_dtm = hashVect.transform(rawEmails_test)
     
-    # Scale train and test vector sets
-    #maxVal = vect_rawEmails_dtm.max()
-    #vect_rawEmails_dtm = vect_rawEmails_dtm/float(maxVal)    
-    #maxVal = vect_cleanEmails_dtm.max()
-    #vect_cleanEmails_dtm = vect_cleanEmails_dtm/float(maxVal)
-    
     # #####################################################
     #               Combine TFIDF and CountVectorizer
     # #####################################################
@@ -320,15 +318,6 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
         'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop']]])
     cleanEmails_dtm = hstack([tfid_cleanEmails_dtm, cleanedEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
         'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop']]])
-    
-    #Double Check shapes
-    #print(rawEmails_train_dtm)
-    #print(rawEmails_train_dtm.shape)
-    #print(rawEmails_test.shape)
-    #print(rawEmails_test_dtm.shape)
-    #print(tfid_rawEmails_test_dtm.shape)
-    #print(vect_tfidf_rawEmails_train_dtm.shape)
-    #print(vect_tfidf_rawEmails_train_dtm)
     
     # This prints off indices of true values
     #print([i for i, x in enumerate(goodSentences_train) if x])
@@ -367,46 +356,6 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
     print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
     statsArray.append({'cAmount': 10, 'gammaAmount': 0.050282828, 'F1_Score': metrics.f1_score(goodSentences_test, vect_tfidf_emails_results)})
     #'''
-    
-    # #########################################################################################
-    #            Working Maching Learning, will be copied for threaded application            #
-    # #########################################################################################
-    '''
-    textObject = []  
-    
-    randomStateCount = 1
-    for cAmount in np.linspace(20, 30, 100):
-            for gammaAmount in np.linspace(.001, .12, 100):                 
-                    
-                    #Set up svc stuff (will modify into loop later)
-                    clf = svm.SVC(C=cAmount, cache_size=5000, class_weight=None, coef0=0.0,
-                    decision_function_shape='ovr', degree=3, gamma=gammaAmount, kernel='rbf',
-                    max_iter=-1, probability=False, random_state=1, shrinking=True,
-                    tol=.001, verbose=False)
-
-                    clf.fit(emails_train_dtm, goodSentences_train)    
-                    
-                    emails_results = clf.predict(emails_test_dtm)
-                    #print the accuracy is
-                    #print('cAmount: ' + str(cAmount) + ' gammaAmount: ' + str(gammaAmount))
-                    #print('CountVectorizer + TFIDFVectorizer Results: ')
-                    #print(metrics.accuracy_score(goodSentences_test, emails_results))   
-                    #print(metrics.f1_score(goodSentences_test, emails_results))     
-                    #This is a thing.  I am still uncertain how to use it
-                    #print(metrics.confusion_matrix(goodSentences_test, emails_results))
-                    if (metrics.f1_score(goodSentences_test, emails_results) >= .25):
-                        
-                        textObject.append({'cAmount': cAmount, 'gammaAmount': gammaAmount, 'F1_Score': metrics.f1_score(goodSentences_test, emails_results)})
-                        randomStateCount += 1
-                    
-    #print(textObject)     
-
-    textObject = pd.DataFrame.from_dict(textObject)
-    print('Runtime is: ' + str(time.time() - start_time) + ' seconds.')
-    print(textObject.sort_values(by=['F1_Score'], ascending=False))
-    goodSentences = IsGoodSentenceList
-    #initialize folds'''
-    
     
     # #########################################################################################
     #                                     Multi threaded                                      #
@@ -592,55 +541,3 @@ def main():
     locStatsArray.to_csv('Output/output_' + str(end_time) + '.csv', encoding='utf-8', index=False)
     
 main()
-
-#Emails prefaced by “from email:”
-
-#Sample GT code
-'''import nltk,random,pickle
-from nltk.corpus import movie_reviews, stopwords
-
-def doc_features(document,word_features):
-    doc_words=set(document)
-    features={}
-    for word in word_features:
-            features['contains(%s)' % word]=(word in doc_words)
-    return features
-
-
-def main():
-    docs = [(list(movie_reviews.words(fileid)),category) for category in movie_reviews.categories() 
-            for fileid in movie_reviews.fileids(category)]
-
-    random.shuffle(docs)
-
-    stop = stopwords.words('english')
-    words = [w.lower() for w in movie_reviews.words() if w.lower() not in stop]
-    all_words=nltk.FreqDist(words)
-    word_features=list(all_words.keys())[:2000]
-    print(word_features)
-    
-    featuresets = [(doc_features(d,word_features),c) for (d,c) in docs]
-    print(featuresets[1])
-    
-    train_set = featuresets[100:]
-    test_set = featuresets[:100]
-
-    classifier = nltk.NaiveBayesClassifier.train(train_set)
-    print (nltk.classify.accuracy(classifier, test_set))
-
-    classifier.show_most_informative_features(20)
-    saveClassifier('movieNB.pickle',classifier)
-    
-def saveClassifier(name, classifier):
-    f = open(name, 'wb')
-    pickle.dump(classifier, f)
-    f.close()
-
-def loadClassifier(name):
-    f = open(name)
-    classifier = pickle.load(f)
-    f.close()
-    return classifier
-    
-main()
-'''
