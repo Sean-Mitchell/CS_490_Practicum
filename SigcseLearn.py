@@ -313,7 +313,7 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     # #####################################################
     
     for folder in queryTFIDF:
-        rawVector = rawtfidfVect.transform(folder.split('_'))
+        rawVector = rawtfidfVect.transform(re.sub('_', r' ', folder))
         cleanVector = cleantfidfVect.transform(folder.split('_'))
         
         # Raw Emails
