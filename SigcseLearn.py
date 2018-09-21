@@ -24,15 +24,17 @@ queryTFIDF = []
 def LoopThroughDocuments(filePath, folderName):
     fileNames= os.listdir(filePath)
     dataframe = pd.DataFrame(columns=['FileName','CleanText', 'CleanTextNoPunc', 'FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop'])
+        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop', 'CosineSimilarity'])
     dataframeNoStop = pd.DataFrame(columns=['FileName','CleanText', 'CleanTextNoPunc', 'FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop'])
+        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop', 'CosineSimilarity'])
     
     # Don't worry about reading files in if there is no summary atm
     if 'summary.txt' not in fileNames:
         return dataframe, dataframeNoStop    
     
+
     queryTFIDF.append(folderName)
+    
     
     # used for index creation while adding into a new dataframe
     counter = 0
@@ -217,10 +219,10 @@ def LoopThroughDocuments(filePath, folderName):
             # Add all sentences into dataframe
             textObject = {'FileName' : folderName + '__summary', 'CleanText' : rawText , 'CleanTextNoPunc' : '', 'FirstSentence': isFirstRaw, 'SecondSentence': isSecondRaw, 
                 'ThirdSentence': isThirdRaw, 'FourthSentence': isFourthRaw, 'FifthSentence': isFifthRaw, 'TopOneSentence': isFirstRaw, 'TopTwoSentence': RawTopTwoSentence, 'TopThreeSentence': RawTopThreeSentence,
-                'TopFourSentence': RawTopFourSentence, 'TopFiveSentence': RawTopFiveSentence, 'SentenceLengthBeforeStop': normalized_RawSentenceLength}    
+                'TopFourSentence': RawTopFourSentence, 'TopFiveSentence': RawTopFiveSentence, 'SentenceLengthBeforeStop': normalized_RawSentenceLength, 'CosineSimilarity': 0}    
             textObjectNoStopWords = {'FileName' : folderName + '__summary', 'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : '', 'FirstSentence': isFirstNoStop, 'SecondSentence': isSecondNoStop, 
                 'ThirdSentence': isThirdNoStop, 'FourthSentence': isFourthNoStop, 'FifthSentence': isFifthNoStop, 'TopOneSentence': isFirstNoStop, 'TopTwoSentence': CleanTopTwoSentence, 'TopThreeSentence': CleanTopThreeSentence,
-                'TopFourSentence': CleanTopFourSentence, 'TopFiveSentence': CleanTopFiveSentence, 'SentenceLengthBeforeStop': normalized_CleanSentenceLength}  
+                'TopFourSentence': CleanTopFourSentence, 'TopFiveSentence': CleanTopFiveSentence, 'SentenceLengthBeforeStop': normalized_CleanSentenceLength, 'CosineSimilarity': 0}  
                 
         # Checks to see if the text file is a number and if it is read it into the main dataframe
         elif fileName.split('.')[0].isnumeric():
@@ -230,10 +232,10 @@ def LoopThroughDocuments(filePath, folderName):
             # if rawtext is 0 for some reason replace with empty strings
             textObject = {'FileName' : folderName + '__' + str(counter), 'CleanText' : rawText , 'CleanTextNoPunc' : '', 'FirstSentence': isFirstRaw, 'SecondSentence': isSecondRaw, 
                 'ThirdSentence': isThirdRaw, 'FourthSentence': isFourthRaw, 'FifthSentence': isFifthRaw, 'TopOneSentence': isFirstRaw, 'TopTwoSentence': RawTopTwoSentence, 'TopThreeSentence': RawTopThreeSentence,
-                'TopFourSentence': RawTopFourSentence, 'TopFiveSentence': RawTopFiveSentence, 'SentenceLengthBeforeStop': normalized_RawSentenceLength}   
+                'TopFourSentence': RawTopFourSentence, 'TopFiveSentence': RawTopFiveSentence, 'SentenceLengthBeforeStop': normalized_RawSentenceLength, 'CosineSimilarity': 0}   
             textObjectNoStopWords = {'FileName' : folderName + '__' + str(counter),'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : '', 'FirstSentence': isFirstNoStop, 'SecondSentence': isSecondNoStop, 
                 'ThirdSentence': isThirdNoStop, 'FourthSentence': isFourthNoStop, 'FifthSentence': isFifthNoStop, 'TopOneSentence': isFirstNoStop, 'TopTwoSentence': CleanTopTwoSentence, 'TopThreeSentence': CleanTopThreeSentence,
-                'TopFourSentence': CleanTopFourSentence, 'TopFiveSentence': CleanTopFiveSentence, 'SentenceLengthBeforeStop': normalized_CleanSentenceLength}
+                'TopFourSentence': CleanTopFourSentence, 'TopFiveSentence': CleanTopFiveSentence, 'SentenceLengthBeforeStop': normalized_CleanSentenceLength, 'CosineSimilarity': 0}
             counter += 1
 
         if dataframeNoStop.empty:
@@ -291,12 +293,12 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #rawVect.fit(rawEmails['CleanTextNoPunc'])
     #cleanVect.fit(rawEmails['CleanTextNoPunc'])
     #hashVect.fit(rawEmails)
-    
+        
+    tfid_rawEmails_dtm = rawtfidfVect.transform(rawEmailsNoPunc)
+    tfid_cleanEmails_dtm = rawtfidfVect.transform(cleanedEmailsNoPunc)
     # fit and transform training into vector matrix
     #vect_rawEmails_dtm = rawVect.transform(rawEmailsNoPunc)
-    tfid_rawEmails_dtm = rawtfidfVect.transform(rawEmailsNoPunc)
     #vect_cleanEmails_dtm = rawVect.transform(cleanedEmailsNoPunc)
-    tfid_cleanEmails_dtm = rawtfidfVect.transform(cleanedEmailsNoPunc)
     #hash_rawEmails_train_dtm = hashVect.transform(rawEmails_train)
     
     # transform test into test matrix
@@ -307,6 +309,40 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #hash_rawEmails_test_dtm = hashVect.transform(rawEmails_test)
     
     # #####################################################
+    #               Cosine Similarity
+    # #####################################################
+    
+    for folder in queryTFIDF:
+        vector = rawtfidfVect.transform(list(folder))
+        
+        # Raw Emails
+        folderCosineComparisonFinished = False
+        for index, row in rawEmails.iterrows():
+            
+            # loops until it finds first fileName that starts with folder name and then it restarts once it's done with all fileNames of that type
+            if row['FileName'].startswith(folder) and not folderCosineComparisonFinished:
+                folderCosineComparisonFinished = True
+            elif not row['FileName'].startswith(folder) and folderCosineComparisonFinished: 
+                continue
+            
+            if folderCosineComparisonFinished:
+                rawEmails.loc[index, 'CosineSimilarity'] = metrics.pairwise.cosine_similarity(tfid_rawEmails_dtm[index], vector)
+        
+        # Cleaned Emails
+        folderCosineComparisonFinished = False
+        for index, row in cleanedEmails.iterrows():
+            
+            # loops until it finds first fileName that starts with folder name and then it restarts once it's done with all fileNames of that type
+            if row['FileName'].startswith(folder) and not folderCosineComparisonFinished:
+                folderCosineComparisonFinished = True
+            elif not row['FileName'].startswith(folder) and folderCosineComparisonFinished: 
+                continue
+            
+            cleanedEmails.loc[index, 'CosineSimilarity'] = metrics.pairwise.cosine_similarity(tfid_cleanEmails_dtm[index], vector)
+        
+        
+    
+    # #####################################################
     #               Combine TFIDF and CountVectorizer
     # #####################################################
     # Concatonate the columns of the training and test set
@@ -315,9 +351,9 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #rawEmails_train_dtm = hstack([vect_tfidf_rawEmails_train_dtm, hash_rawEmails_train_dtm])
     #rawEmails_test_dtm = hstack([vect_tfidf_rawEmails_test_dtm, hash_rawEmails_test_dtm])
     rawEmails_dtm = hstack([tfid_rawEmails_dtm, rawEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop']]])
+        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop', 'CosineSimilarity']]])
     cleanEmails_dtm = hstack([tfid_cleanEmails_dtm, cleanedEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop']]])
+        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop', 'CosineSimilarity']]])
     
     # This prints off indices of true values
     #print([i for i, x in enumerate(goodSentences_train) if x])
@@ -337,7 +373,7 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
     
     emails_results = clf.predict(emails_test_dtm)
     '''
-    '''
+    
     rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails_dtm, goodSentences, random_state=7)
     clf = svm.SVC(C=10, cache_size=8000, class_weight=None, coef0=0.1,
     decision_function_shape='ovr', degree=3, gamma=0.050282828, kernel='rbf',
@@ -363,7 +399,7 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
         
     
     threads = []
-    
+    '''
     for randomState in range(1, 11):
         for cAmount in np.linspace(1, 100, 100):
                 for gammaAmount in np.linspace(.001, .2, 100):  
