@@ -295,7 +295,7 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #hashVect.fit(rawEmails)
         
     tfid_rawEmails_dtm = rawtfidfVect.transform(rawEmailsNoPunc)
-    tfid_cleanEmails_dtm = rawtfidfVect.transform(cleanedEmailsNoPunc)
+    tfid_cleanEmails_dtm = cleantfidfVect.transform(cleanedEmailsNoPunc)
     # fit and transform training into vector matrix
     #vect_rawEmails_dtm = rawVect.transform(rawEmailsNoPunc)
     #vect_cleanEmails_dtm = rawVect.transform(cleanedEmailsNoPunc)
@@ -313,7 +313,8 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     # #####################################################
     
     for folder in queryTFIDF:
-        vector = rawtfidfVect.transform(list(folder))
+        rawVector = rawtfidfVect.transform(folder.split('_'))
+        cleanVector = cleantfidfVect.transform(folder.split('_'))
         
         # Raw Emails
         folderCosineComparisonFinished = False
@@ -326,7 +327,7 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
                 continue
             
             if folderCosineComparisonFinished:
-                rawEmails.loc[index, 'CosineSimilarity'] = metrics.pairwise.cosine_similarity(tfid_rawEmails_dtm[index], vector)
+                rawEmails.loc[index, 'CosineSimilarity'] = metrics.pairwise.cosine_similarity(tfid_rawEmails_dtm[index], rawVector)
         
         # Cleaned Emails
         folderCosineComparisonFinished = False
@@ -338,7 +339,7 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
             elif not row['FileName'].startswith(folder) and folderCosineComparisonFinished: 
                 continue
             
-            cleanedEmails.loc[index, 'CosineSimilarity'] = metrics.pairwise.cosine_similarity(tfid_cleanEmails_dtm[index], vector)
+            cleanedEmails.loc[index, 'CosineSimilarity'] = metrics.pairwise.cosine_similarity(tfid_cleanEmails_dtm[index], cleanVector)
         
         
     
