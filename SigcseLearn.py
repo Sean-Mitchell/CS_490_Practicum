@@ -326,7 +326,7 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
                 continue
             
             if folderCosineComparisonFinished:
-				rawEmails.loc[index, 'CosineSimilarity'] = metrics.pairwise.cosine_similarity(tfid_rawEmails_dtm[index], vector)
+                rawEmails.loc[index, 'CosineSimilarity'] = metrics.pairwise.cosine_similarity(tfid_rawEmails_dtm[index], vector)
         
         # Cleaned Emails
         folderCosineComparisonFinished = False
