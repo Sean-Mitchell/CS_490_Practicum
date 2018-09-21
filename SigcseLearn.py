@@ -313,8 +313,7 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     # #####################################################
     
     for folder in queryTFIDF:
-        rawVector = rawtfidfVect.transform(re.sub('_', r' ', folder))
-        cleanVector = cleantfidfVect.transform(folder.split('_'))
+        vector = rawtfidfVect.transform(np.array([re.sub('_', r' ', folder)]))
         
         # Raw Emails
         folderCosineComparisonFinished = False
@@ -327,7 +326,7 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
                 continue
             
             if folderCosineComparisonFinished:
-                rawEmails.loc[index, 'CosineSimilarity'] = metrics.pairwise.cosine_similarity(tfid_rawEmails_dtm[index], rawVector)
+				rawEmails.loc[index, 'CosineSimilarity'] = metrics.pairwise.cosine_similarity(tfid_rawEmails_dtm[index], vector)
         
         # Cleaned Emails
         folderCosineComparisonFinished = False
@@ -339,7 +338,8 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
             elif not row['FileName'].startswith(folder) and folderCosineComparisonFinished: 
                 continue
             
-            cleanedEmails.loc[index, 'CosineSimilarity'] = metrics.pairwise.cosine_similarity(tfid_cleanEmails_dtm[index], cleanVector)
+            if folderCosineComparisonFinished:
+                cleanedEmails.loc[index, 'CosineSimilarity'] = metrics.pairwise.cosine_similarity(tfid_cleanEmails_dtm[index], vector)
         
         
     
