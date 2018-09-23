@@ -1,10 +1,11 @@
 import os
-import time
-import random
-import re
 import numpy as np
 import pandas as pd
+import random
+import re
 import string as strng
+import sys
+import time
 from scipy.sparse import hstack
 from sklearn import metrics, svm
 from sklearn.cross_validation import train_test_split
@@ -371,7 +372,7 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     return rawEmails_dtm, cleanEmails_dtm, summaryList
 
 #This should hold all the machine learning things
-def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):       
+def MachineLearningPart(isSingleRun, rawEmails_dtm, cleanEmails_dtm, goodSentences):       
     
     # #########################################################################################
     #                       Simplest SVM Set up.  Used for one off runs                       #
@@ -384,37 +385,35 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
     
     emails_results = clf.predict(emails_test_dtm)
     '''
-    
-    rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails_dtm, goodSentences, random_state=7)
-    clf = svm.SVC(C=10, cache_size=1000, class_weight=None, coef0=0.1,
-    decision_function_shape='ovr', degree=3, gamma=0.050282828, kernel='rbf',
-    max_iter=-1, probability=False, random_state=1, shrinking=True,
-    tol=.01, verbose=False)
-    
-    clf.fit(rawEmails_train, goodSentences_train)    
-    
-    vect_tfidf_emails_results = clf.predict(rawEmails_test)
-    #print the accuracy is
-    print('CountVectorizer + TFIDFVectorizer Results: ')
-    print(metrics.accuracy_score(goodSentences_test, vect_tfidf_emails_results))    
-    print(metrics.precision_recall_fscore_support(goodSentences_test, vect_tfidf_emails_results))    
-    #This is a thing.  I am still uncertain how to use it
-    print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
-    statsArray.append({'cAmount': 10, 'gammaAmount': 0.050282828, 'F1_Score': metrics.f1_score(goodSentences_test, vect_tfidf_emails_results)})
-    #'''
+    threads = []
+    if isSingleRun:
+        rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails_dtm, goodSentences, random_state=7)
+        clf = svm.SVC(C=10, cache_size=1000, class_weight=None, coef0=0.1,
+        decision_function_shape='ovr', degree=3, gamma=0.050282828, kernel='rbf',
+        max_iter=-1, probability=False, random_state=1, shrinking=True,
+        tol=.01, verbose=False)
+        
+        clf.fit(rawEmails_train, goodSentences_train)    
+        
+        vect_tfidf_emails_results = clf.predict(rawEmails_test)
+        #print the accuracy is
+        print('CountVectorizer + TFIDFVectorizer Results: ')
+        print(metrics.accuracy_score(goodSentences_test, vect_tfidf_emails_results))    
+        print(metrics.precision_recall_fscore_support(goodSentences_test, vect_tfidf_emails_results))    
+        #This is a thing.  I am still uncertain how to use it
+        print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
+        statsArray.append({'cAmount': 10, 'gammaAmount': 0.050282828, 'F1_Score': metrics.f1_score(goodSentences_test, vect_tfidf_emails_results)})
     
     # #########################################################################################
     #                                     Multi threaded                                      #
     # #########################################################################################
         
-    
-    threads = []
-    '''
-    for randomState in range(1, 11):
-        for cAmount in np.linspace(1, 100, 100):
-                for gammaAmount in np.linspace(.001, .2, 100):  
-                    threads.append(Thread(target=LearningThread, args=(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, cAmount, gammaAmount)))
-                    threads[-1].start()
+    else:
+        for randomState in range(1, 11):
+            for cAmount in np.linspace(1, 100, 100):
+                    for gammaAmount in np.linspace(.001, .2, 100):  
+                        threads.append(Thread(target=LearningThread, args=(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, cAmount, gammaAmount)))
+                        threads[-1].start()
     
     # '''
     # #########################################################################################
@@ -541,10 +540,16 @@ def main():
    
     start_time = time.time()
     print(time.ctime(int(start_time)))
+    
+    # set up runType
+    if sys.argv[1] == 'Single':
+        isSingleRun = True
+    else:
+        isSingleRun = False
     # ###########################################################
     #            Read in Files and create rawDataFrame          #
     # ###########################################################
-    
+        
     filepath = 'Sigcse/'
     df = pd.DataFrame(columns=['FileName', 'CleanText', 'CleanTextNoPunc'])
     dfNoStop = pd.DataFrame(columns=['FileName', 'TextNoStop', 'TextNoStopNoPunc'])
@@ -572,7 +577,7 @@ def main():
                         df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
                         
                         
-    MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences)
+    MachineLearningPart(isSingleRun, rawEmails_dtm, cleanEmails_dtm, goodSentences)
     # prints full head
     # pd.set_option('display.max_colwidth', -1)
     # print(df.head())  
