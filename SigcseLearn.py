@@ -289,7 +289,7 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     # ### Note: fits better at the moment without hashVect commented out in case of need for later.
     
     rawtfidfVect.fit(rawEmails['CleanTextNoPunc'])
-    cleantfidfVect.fit(rawEmails['CleanTextNoPunc'])
+    cleantfidfVect.fit(cleanedEmails['CleanTextNoPunc'])
     #rawVect.fit(rawEmails['CleanTextNoPunc'])
     #cleanVect.fit(rawEmails['CleanTextNoPunc'])
     #hashVect.fit(rawEmails)
@@ -312,8 +312,12 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #               Cosine Similarity
     # #####################################################
     
+    rawEmails = rawEmails.reset_index(drop = False)
+    cleanedEmails = cleanedEmails.reset_index(drop = False)
+    
     for folder in queryTFIDF:
-        vector = rawtfidfVect.transform(np.array([re.sub('_', r' ', folder)]))
+        rawVector = rawtfidfVect.transform(np.array([re.sub('_', r' ', folder)]))
+        cleanVector = cleantfidfVect.transform(np.array([re.sub('_', r' ', folder)]))
         
         # Raw Emails
         folderCosineComparisonFinished = False
@@ -326,8 +330,10 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
                 continue
             
             if folderCosineComparisonFinished:
-                rawEmails.loc[index, 'CosineSimilarity'] = metrics.pairwise.cosine_similarity(tfid_rawEmails_dtm[index], vector)
-        
+                cosineSim = metrics.pairwise.cosine_similarity(tfid_rawEmails_dtm[index], rawVector)[0][0]
+                if cosineSim != 0:
+                    rawEmails.loc[index, 'CosineSimilarity'] = cosineSim
+                    
         # Cleaned Emails
         folderCosineComparisonFinished = False
         for index, row in cleanedEmails.iterrows():
@@ -339,10 +345,11 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
                 continue
             
             if folderCosineComparisonFinished:
-                cleanedEmails.loc[index, 'CosineSimilarity'] = metrics.pairwise.cosine_similarity(tfid_cleanEmails_dtm[index], vector)
+                cosineSim = metrics.pairwise.cosine_similarity(tfid_cleanEmails_dtm[index], cleanVector)[0][0]
+                if cosineSim != 0:
+                    cleanedEmails.loc[index, 'CosineSimilarity'] = cosineSim
         
         
-    
     # #####################################################
     #               Combine TFIDF and CountVectorizer
     # #####################################################
@@ -351,10 +358,13 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #cleanEmails_dtm = hstack([vect_cleanEmails_dtm, tfid_cleanEmails_dtm])    
     #rawEmails_train_dtm = hstack([vect_tfidf_rawEmails_train_dtm, hash_rawEmails_train_dtm])
     #rawEmails_test_dtm = hstack([vect_tfidf_rawEmails_test_dtm, hash_rawEmails_test_dtm])
+    
+    
+    
     rawEmails_dtm = hstack([tfid_rawEmails_dtm, rawEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop', 'CosineSimilarity']]])
+        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']].astype(float)])
     cleanEmails_dtm = hstack([tfid_cleanEmails_dtm, cleanedEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop', 'CosineSimilarity']]])
+        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']].astype(float)])
     
     # This prints off indices of true values
     #print([i for i, x in enumerate(goodSentences_train) if x])
@@ -376,11 +386,10 @@ def MachineLearningPart(rawEmails_dtm, cleanEmails_dtm, goodSentences):
     '''
     
     rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails_dtm, goodSentences, random_state=7)
-    clf = svm.SVC(C=10, cache_size=8000, class_weight=None, coef0=0.1,
+    clf = svm.SVC(C=10, cache_size=1000, class_weight=None, coef0=0.1,
     decision_function_shape='ovr', degree=3, gamma=0.050282828, kernel='rbf',
     max_iter=-1, probability=False, random_state=1, shrinking=True,
     tol=.01, verbose=False)
-    print(clf.get_params())
     
     clf.fit(rawEmails_train, goodSentences_train)    
     
