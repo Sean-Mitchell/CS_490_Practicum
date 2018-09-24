@@ -18,6 +18,7 @@ from threading import Lock, Thread
 statsLock = Lock()
 statsArray = []
 queryTFIDF = []
+includeTFIDF = True
 
 
 
@@ -268,105 +269,110 @@ def LoopThroughDocuments(filePath, folderName):
 # This includes matching up the summary sentences, vectorizing, and tfidf as well as assigning 
 def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawDataFrame, rawEmails, rawSummaries):
     
-    # Create Y column (this is what we will be working to get using the SVM later on).  It's the unknown we want to solve for later on    
-    rawEmails.reset_index(drop = False) 
-    cleanedEmails.reset_index(drop = False)
-    summaryList = rawEmails['CleanText'].isin(rawSummaries['CleanText'])
-    cleanedSummaryList = cleanedEmails['CleanText'].isin(cleanedDataSummaries['CleanText'])
-    
-    #Assign Test and Train parts
-    rawEmailsNoPunc = rawEmails['CleanTextNoPunc']
-    cleanedEmailsNoPunc = cleanedEmails['CleanTextNoPunc']
-    
-    rawtfidfVect = TfidfVectorizer(ngram_range=(1, 2))
-    cleantfidfVect = TfidfVectorizer(ngram_range=(1, 2))
-    
-    #rawVect = CountVectorizer(ngram_range=(1, 2))
-    #cleanVect = CountVectorizer(ngram_range=(1, 2))
-    #hashVect = HashingVectorizer(ngram_range=(1, 2))
-    
-    
-    #Create Series that the countVectorizer can use to create training and testing sets
-    # ### Note: fits better at the moment without hashVect commented out in case of need for later.
-    
-    rawtfidfVect.fit(rawEmails['CleanTextNoPunc'])
-    cleantfidfVect.fit(cleanedEmails['CleanTextNoPunc'])
-    #rawVect.fit(rawEmails['CleanTextNoPunc'])
-    #cleanVect.fit(rawEmails['CleanTextNoPunc'])
-    #hashVect.fit(rawEmails)
+    if includeTFIDF:
+        # Create Y column (this is what we will be working to get using the SVM later on).  It's the unknown we want to solve for later on    
+        rawEmails.reset_index(drop = False) 
+        cleanedEmails.reset_index(drop = False)
+        summaryList = rawEmails['CleanText'].isin(rawSummaries['CleanText'])
+        cleanedSummaryList = cleanedEmails['CleanText'].isin(cleanedDataSummaries['CleanText'])
         
-    tfid_rawEmails_dtm = rawtfidfVect.transform(rawEmailsNoPunc)
-    tfid_cleanEmails_dtm = cleantfidfVect.transform(cleanedEmailsNoPunc)
-    # fit and transform training into vector matrix
-    #vect_rawEmails_dtm = rawVect.transform(rawEmailsNoPunc)
-    #vect_cleanEmails_dtm = rawVect.transform(cleanedEmailsNoPunc)
-    #hash_rawEmails_train_dtm = hashVect.transform(rawEmails_train)
-    
-    # transform test into test matrix
-    #vect_rawEmails_dtm = rawVect.transform(rawEmails_test)
-    #tfid_rawEmails_dtm = rawtfidfVect.transform(rawEmails_test)
-    #vect_clearnEmails_dtm = rawVect.transform(rawEmails_test)
-    #tfid_cleanEmails_dtm = rawtfidfVect.transform(rawEmails_test)
-    #hash_rawEmails_test_dtm = hashVect.transform(rawEmails_test)
-    
-    # #####################################################
-    #               Cosine Similarity
-    # #####################################################
-    
-    rawEmails = rawEmails.reset_index(drop = False)
-    cleanedEmails = cleanedEmails.reset_index(drop = False)
-    
-    for folder in queryTFIDF:
-        rawVector = rawtfidfVect.transform(np.array([re.sub('_', r' ', folder)]))
-        cleanVector = cleantfidfVect.transform(np.array([re.sub('_', r' ', folder)]))
+        #Assign Test and Train parts
+        rawEmailsNoPunc = rawEmails['CleanTextNoPunc']
+        cleanedEmailsNoPunc = cleanedEmails['CleanTextNoPunc']
         
-        # Raw Emails
-        folderCosineComparisonFinished = False
-        for index, row in rawEmails.iterrows():
-            
-            # loops until it finds first fileName that starts with folder name and then it restarts once it's done with all fileNames of that type
-            if row['FileName'].startswith(folder) and not folderCosineComparisonFinished:
-                folderCosineComparisonFinished = True
-            elif not row['FileName'].startswith(folder) and folderCosineComparisonFinished: 
-                continue
-            
-            if folderCosineComparisonFinished:
-                cosineSim = metrics.pairwise.cosine_similarity(tfid_rawEmails_dtm[index], rawVector)[0][0]
-                if cosineSim != 0:
-                    rawEmails.loc[index, 'CosineSimilarity'] = cosineSim
-                    
-        # Cleaned Emails
-        folderCosineComparisonFinished = False
-        for index, row in cleanedEmails.iterrows():
-            
-            # loops until it finds first fileName that starts with folder name and then it restarts once it's done with all fileNames of that type
-            if row['FileName'].startswith(folder) and not folderCosineComparisonFinished:
-                folderCosineComparisonFinished = True
-            elif not row['FileName'].startswith(folder) and folderCosineComparisonFinished: 
-                continue
-            
-            if folderCosineComparisonFinished:
-                cosineSim = metrics.pairwise.cosine_similarity(tfid_cleanEmails_dtm[index], cleanVector)[0][0]
-                if cosineSim != 0:
-                    cleanedEmails.loc[index, 'CosineSimilarity'] = cosineSim
+        rawtfidfVect = TfidfVectorizer(ngram_range=(1, 2))
+        cleantfidfVect = TfidfVectorizer(ngram_range=(1, 2))
+        
+        #rawVect = CountVectorizer(ngram_range=(1, 2))
+        #cleanVect = CountVectorizer(ngram_range=(1, 2))
+        #hashVect = HashingVectorizer(ngram_range=(1, 2))
         
         
-    # #####################################################
-    #               Combine TFIDF and CountVectorizer
-    # #####################################################
-    # Concatonate the columns of the training and test set
-    #rawEmails_dtm = hstack([vect_rawEmails_dtm, tfid_rawEmails_dtm])
-    #cleanEmails_dtm = hstack([vect_cleanEmails_dtm, tfid_cleanEmails_dtm])    
-    #rawEmails_train_dtm = hstack([vect_tfidf_rawEmails_train_dtm, hash_rawEmails_train_dtm])
-    #rawEmails_test_dtm = hstack([vect_tfidf_rawEmails_test_dtm, hash_rawEmails_test_dtm])
-    
-    
-    
-    rawEmails_dtm = hstack([tfid_rawEmails_dtm, rawEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']].astype(float)])
-    cleanEmails_dtm = hstack([tfid_cleanEmails_dtm, cleanedEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-        'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']].astype(float)])
-    
+        #Create Series that the countVectorizer can use to create training and testing sets
+        # ### Note: fits better at the moment without hashVect commented out in case of need for later.
+        
+        rawtfidfVect.fit(rawEmails['CleanTextNoPunc'])
+        cleantfidfVect.fit(cleanedEmails['CleanTextNoPunc'])
+        #rawVect.fit(rawEmails['CleanTextNoPunc'])
+        #cleanVect.fit(rawEmails['CleanTextNoPunc'])
+        #hashVect.fit(rawEmails)
+            
+        tfid_rawEmails_dtm = rawtfidfVect.transform(rawEmailsNoPunc)
+        tfid_cleanEmails_dtm = cleantfidfVect.transform(cleanedEmailsNoPunc)
+        # fit and transform training into vector matrix
+        #vect_rawEmails_dtm = rawVect.transform(rawEmailsNoPunc)
+        #vect_cleanEmails_dtm = rawVect.transform(cleanedEmailsNoPunc)
+        #hash_rawEmails_train_dtm = hashVect.transform(rawEmails_train)
+        
+        # transform test into test matrix
+        #vect_rawEmails_dtm = rawVect.transform(rawEmails_test)
+        #tfid_rawEmails_dtm = rawtfidfVect.transform(rawEmails_test)
+        #vect_clearnEmails_dtm = rawVect.transform(rawEmails_test)
+        #tfid_cleanEmails_dtm = rawtfidfVect.transform(rawEmails_test)
+        #hash_rawEmails_test_dtm = hashVect.transform(rawEmails_test)
+        
+        # #####################################################
+        #               Cosine Similarity
+        # #####################################################
+        
+        rawEmails = rawEmails.reset_index(drop = False)
+        cleanedEmails = cleanedEmails.reset_index(drop = False)
+        
+        for folder in queryTFIDF:
+            rawVector = rawtfidfVect.transform(np.array([re.sub('_', r' ', folder)]))
+            cleanVector = cleantfidfVect.transform(np.array([re.sub('_', r' ', folder)]))
+            
+            # Raw Emails
+            folderCosineComparisonFinished = False
+            for index, row in rawEmails.iterrows():
+                
+                # loops until it finds first fileName that starts with folder name and then it restarts once it's done with all fileNames of that type
+                if row['FileName'].startswith(folder) and not folderCosineComparisonFinished:
+                    folderCosineComparisonFinished = True
+                elif not row['FileName'].startswith(folder) and folderCosineComparisonFinished: 
+                    continue
+                
+                if folderCosineComparisonFinished:
+                    cosineSim = metrics.pairwise.cosine_similarity(tfid_rawEmails_dtm[index], rawVector)[0][0]
+                    if cosineSim != 0:
+                        rawEmails.loc[index, 'CosineSimilarity'] = cosineSim
+                        
+            # Cleaned Emails
+            folderCosineComparisonFinished = False
+            for index, row in cleanedEmails.iterrows():
+                
+                # loops until it finds first fileName that starts with folder name and then it restarts once it's done with all fileNames of that type
+                if row['FileName'].startswith(folder) and not folderCosineComparisonFinished:
+                    folderCosineComparisonFinished = True
+                elif not row['FileName'].startswith(folder) and folderCosineComparisonFinished: 
+                    continue
+                
+                if folderCosineComparisonFinished:
+                    cosineSim = metrics.pairwise.cosine_similarity(tfid_cleanEmails_dtm[index], cleanVector)[0][0]
+                    if cosineSim != 0:
+                        cleanedEmails.loc[index, 'CosineSimilarity'] = cosineSim
+            
+            
+        # #####################################################
+        #               Combine TFIDF and CountVectorizer
+        # #####################################################
+        # Concatonate the columns of the training and test set
+        #rawEmails_dtm = hstack([vect_rawEmails_dtm, tfid_rawEmails_dtm])
+        #cleanEmails_dtm = hstack([vect_cleanEmails_dtm, tfid_cleanEmails_dtm])    
+        #rawEmails_train_dtm = hstack([vect_tfidf_rawEmails_train_dtm, hash_rawEmails_train_dtm])
+        #rawEmails_test_dtm = hstack([vect_tfidf_rawEmails_test_dtm, hash_rawEmails_test_dtm])
+        
+        
+        
+        rawEmails_dtm = hstack([tfid_rawEmails_dtm, rawEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
+            'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']].astype(float)])
+        cleanEmails_dtm = hstack([tfid_cleanEmails_dtm, cleanedEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
+            'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']].astype(float)])
+    else:
+        rawEmails_dtm = rawEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
+            'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']].astype(float)
+        cleanEmails_dtm = cleanedEmails[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
+            'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']].astype(float)
     # This prints off indices of true values
     #print([i for i, x in enumerate(goodSentences_train) if x])
     return rawEmails_dtm, cleanEmails_dtm, summaryList
@@ -542,10 +548,15 @@ def main():
     print(time.ctime(int(start_time)))
     
     # set up runType
-    if sys.argv[1] == 'Single':
+    if sys.argv[1].upper() == 'SINGLE':
         isSingleRun = True
     else:
         isSingleRun = False
+        
+    if sys.argv[2].upper() == 'I':
+        includeTFIDF = True
+    else:
+        includeTFIDF = False
     # ###########################################################
     #            Read in Files and create rawDataFrame          #
     # ###########################################################
@@ -589,6 +600,9 @@ def main():
     locStatsArray = locStatsArray.sort_values(['F1_Score', 'cAmount', 'gammaAmount', 'randState', 'Learning_Type'], ascending=[False, True, True, True, True])
     #locStatsArray = locStatsArray.groupby(['cAmount', 'gammaAmount', 'randState', 'Learning_Type'])
     #print(locStatsArray)
-    locStatsArray.to_csv('Output/output_' + str(end_time) + '.csv', encoding='utf-8', index=False)
+    if includeTFIDF:
+        locStatsArray.to_csv('Output/outputWithTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
+    else:
+        locStatsArray.to_csv('Output/outputNoTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
     
 main()
