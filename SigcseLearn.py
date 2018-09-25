@@ -268,13 +268,13 @@ def LoopThroughDocuments(filePath, folderName):
 # Split the dataframes into the final data frame that will be used
 # This includes matching up the summary sentences, vectorizing, and tfidf as well as assigning 
 def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawDataFrame, rawEmails, rawSummaries):
+    # Create Y column (this is what we will be working to get using the SVM later on).  It's the unknown we want to solve for later on    
+    rawEmails.reset_index(drop = False) 
+    cleanedEmails.reset_index(drop = False)
+    summaryList = rawEmails['CleanText'].isin(rawSummaries['CleanText'])
+    cleanedSummaryList = cleanedEmails['CleanText'].isin(cleanedDataSummaries['CleanText'])
     
     if includeTFIDF:
-        # Create Y column (this is what we will be working to get using the SVM later on).  It's the unknown we want to solve for later on    
-        rawEmails.reset_index(drop = False) 
-        cleanedEmails.reset_index(drop = False)
-        summaryList = rawEmails['CleanText'].isin(rawSummaries['CleanText'])
-        cleanedSummaryList = cleanedEmails['CleanText'].isin(cleanedDataSummaries['CleanText'])
         
         #Assign Test and Train parts
         rawEmailsNoPunc = rawEmails['CleanTextNoPunc']
@@ -393,9 +393,9 @@ def MachineLearningPart(isSingleRun, rawEmails_dtm, cleanEmails_dtm, goodSentenc
     '''
     threads = []
     if isSingleRun:
-        rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails_dtm, goodSentences, random_state=7)
-        clf = svm.SVC(C=10, cache_size=1000, class_weight=None, coef0=0.1,
-        decision_function_shape='ovr', degree=3, gamma=0.050282828, kernel='rbf',
+        rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails_dtm, goodSentences, random_state=10)
+        clf = svm.SVC(C=7, cache_size=1000, class_weight=None, coef0=0.1,
+        decision_function_shape='ovr', degree=3, gamma=0.121606061, kernel='rbf',
         max_iter=-1, probability=False, random_state=1, shrinking=True,
         tol=.01, verbose=False)
         
@@ -404,11 +404,9 @@ def MachineLearningPart(isSingleRun, rawEmails_dtm, cleanEmails_dtm, goodSentenc
         vect_tfidf_emails_results = clf.predict(rawEmails_test)
         #print the accuracy is
         print('CountVectorizer + TFIDFVectorizer Results: ')
-        print(metrics.accuracy_score(goodSentences_test, vect_tfidf_emails_results))    
-        print(metrics.precision_recall_fscore_support(goodSentences_test, vect_tfidf_emails_results))    
-        #This is a thing.  I am still uncertain how to use it
-        print(metrics.confusion_matrix(goodSentences_test, vect_tfidf_emails_results))
-        statsArray.append({'cAmount': 10, 'gammaAmount': 0.050282828, 'F1_Score': metrics.f1_score(goodSentences_test, vect_tfidf_emails_results)})
+        
+        #locStatsArray = pd.DataFrame.from_dict({'Sentences': rawEmails_test, 'ActualAmount': goodSentences_test, 'PredictedAmount': vect_tfidf_emails_results, 'F1_Score': metrics.f1_score(goodSentences_test, vect_tfidf_emails_results)})
+        #locStatsArray.to_csv('Output/Sentence/NoTFIDF_7_121_10.csv', encoding='utf-8', index=False)
     
     # #########################################################################################
     #                                     Multi threaded                                      #
@@ -553,6 +551,7 @@ def main():
     else:
         isSingleRun = False
         
+    global includeTFIDF   
     if sys.argv[2].upper() == 'I':
         includeTFIDF = True
     else:
