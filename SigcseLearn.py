@@ -25,9 +25,9 @@ includeTFIDF = True
 # Read in all the txt Files
 def LoopThroughDocuments(filePath, folderName):
     fileNames= os.listdir(filePath)
-    dataframe = pd.DataFrame(columns=['FileName','CleanText', 'CleanTextNoPunc', 'FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
+    dataframe = pd.DataFrame(columns=['RawFileName', 'FileName','CleanText', 'CleanTextNoPunc', 'FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
         'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop', 'CosineSimilarity'])
-    dataframeNoStop = pd.DataFrame(columns=['FileName','CleanText', 'CleanTextNoPunc', 'FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
+    dataframeNoStop = pd.DataFrame(columns=['RawFileName', 'FileName','CleanText', 'CleanTextNoPunc', 'FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
         'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence', 'SentenceLengthBeforeStop', 'CosineSimilarity'])
     
     # Don't worry about reading files in if there is no summary atm
@@ -219,10 +219,10 @@ def LoopThroughDocuments(filePath, folderName):
             
             # Create dataframe and concat it to what exists (if something exists)
             # Add all sentences into dataframe
-            textObject = {'FileName' : folderName + '__summary', 'CleanText' : rawText , 'CleanTextNoPunc' : '', 'FirstSentence': isFirstRaw, 'SecondSentence': isSecondRaw, 
+            textObject = {'RawFileName': folderName, 'FileName' : folderName + '__summary', 'CleanText' : rawText , 'CleanTextNoPunc' : '', 'FirstSentence': isFirstRaw, 'SecondSentence': isSecondRaw, 
                 'ThirdSentence': isThirdRaw, 'FourthSentence': isFourthRaw, 'FifthSentence': isFifthRaw, 'TopOneSentence': isFirstRaw, 'TopTwoSentence': RawTopTwoSentence, 'TopThreeSentence': RawTopThreeSentence,
                 'TopFourSentence': RawTopFourSentence, 'TopFiveSentence': RawTopFiveSentence, 'SentenceLengthBeforeStop': normalized_RawSentenceLength, 'CosineSimilarity': 0}    
-            textObjectNoStopWords = {'FileName' : folderName + '__summary', 'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : '', 'FirstSentence': isFirstNoStop, 'SecondSentence': isSecondNoStop, 
+            textObjectNoStopWords = {'RawFileName': folderName, 'FileName' : folderName + '__summary', 'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : '', 'FirstSentence': isFirstNoStop, 'SecondSentence': isSecondNoStop, 
                 'ThirdSentence': isThirdNoStop, 'FourthSentence': isFourthNoStop, 'FifthSentence': isFifthNoStop, 'TopOneSentence': isFirstNoStop, 'TopTwoSentence': CleanTopTwoSentence, 'TopThreeSentence': CleanTopThreeSentence,
                 'TopFourSentence': CleanTopFourSentence, 'TopFiveSentence': CleanTopFiveSentence, 'SentenceLengthBeforeStop': normalized_CleanSentenceLength, 'CosineSimilarity': 0}  
                 
@@ -232,10 +232,10 @@ def LoopThroughDocuments(filePath, folderName):
             # Create dataframe and concat it to what exists (if something exists)
             # Add all sentences into dataframe
             # if rawtext is 0 for some reason replace with empty strings
-            textObject = {'FileName' : folderName + '__' + str(counter), 'CleanText' : rawText , 'CleanTextNoPunc' : '', 'FirstSentence': isFirstRaw, 'SecondSentence': isSecondRaw, 
+            textObject = {'RawFileName': folderName, 'FileName' : folderName + '__' + str(counter), 'CleanText' : rawText , 'CleanTextNoPunc' : '', 'FirstSentence': isFirstRaw, 'SecondSentence': isSecondRaw, 
                 'ThirdSentence': isThirdRaw, 'FourthSentence': isFourthRaw, 'FifthSentence': isFifthRaw, 'TopOneSentence': isFirstRaw, 'TopTwoSentence': RawTopTwoSentence, 'TopThreeSentence': RawTopThreeSentence,
                 'TopFourSentence': RawTopFourSentence, 'TopFiveSentence': RawTopFiveSentence, 'SentenceLengthBeforeStop': normalized_RawSentenceLength, 'CosineSimilarity': 0}   
-            textObjectNoStopWords = {'FileName' : folderName + '__' + str(counter),'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : '', 'FirstSentence': isFirstNoStop, 'SecondSentence': isSecondNoStop, 
+            textObjectNoStopWords = {'RawFileName': folderName, 'FileName' : folderName + '__' + str(counter),'CleanText' : RawTextNoStopWords, 'CleanTextNoPunc' : '', 'FirstSentence': isFirstNoStop, 'SecondSentence': isSecondNoStop, 
                 'ThirdSentence': isThirdNoStop, 'FourthSentence': isFourthNoStop, 'FifthSentence': isFifthNoStop, 'TopOneSentence': isFirstNoStop, 'TopTwoSentence': CleanTopTwoSentence, 'TopThreeSentence': CleanTopThreeSentence,
                 'TopFourSentence': CleanTopFourSentence, 'TopFiveSentence': CleanTopFiveSentence, 'SentenceLengthBeforeStop': normalized_CleanSentenceLength, 'CosineSimilarity': 0}
             counter += 1
@@ -352,7 +352,17 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
                     if cosineSim != 0:
                         cleanedEmails.loc[index, 'CosineSimilarity'] = cosineSim
             
-            
+        
+        print(rawEmails['CosineSimilarity'].head())
+        maxVal = max(rawEmails['CosineSimilarity'])
+        for index, row in rawEmails.iterrows():
+            rawEmails.loc[index, 'CosineSimilarity'] = row['CosineSimilarity'] / float(maxVal)
+			
+        print(rawEmails['CosineSimilarity'].head())
+		
+        maxVal = max(cleanedEmails['CosineSimilarity'])
+        for index, row in cleanedEmails.iterrows():
+            cleanedEmails.loc[index, 'CosineSimilarity'] = row['CosineSimilarity'] / float(maxVal)
         # #####################################################
         #               Combine TFIDF and CountVectorizer
         # #####################################################
@@ -415,7 +425,7 @@ def MachineLearningPart(isSingleRun, rawEmails_dtm, cleanEmails_dtm, goodSentenc
     else:
         for randomState in range(1, 11):
             for cAmount in np.linspace(1, 100, 100):
-                    for gammaAmount in np.linspace(.001, .2, 100):  
+                    for gammaAmount in np.linspace(.01, .4, 100):  
                         threads.append(Thread(target=LearningThread, args=(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, cAmount, gammaAmount)))
                         threads[-1].start()
     
@@ -515,10 +525,10 @@ def LearningThread(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, c
     
     # Only take "good SVMS" based on f1 score
     # Update to save all for CV comparison
-    #if (metrics.f1_score(goodSentences_test, emails_train_dtm_results) >= .25):
-    statsLock.acquire()
-    statsArray.append({'Learning_Type': 'raw_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, emails_train_dtm_results)})
-    statsLock.release()
+    if (metrics.f1_score(goodSentences_test, emails_train_dtm_results) > 0):
+        statsLock.acquire()
+        statsArray.append({'Learning_Type': 'raw_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, emails_train_dtm_results)})
+        statsLock.release()
     
     
     # ###########################################################
@@ -535,10 +545,10 @@ def LearningThread(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, c
     
     # Only take "good SVMS" based on f1 score
     # Update to save all for CV comparison
-    #if (metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results) >= .25):
-    statsLock.acquire()
-    statsArray.append({'Learning_Type': 'cleaned_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(cleanGoodSentences_test, emails_train_dtm_results)})
-    statsLock.release()
+    if (metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results) > 0):
+        statsLock.acquire()
+        statsArray.append({'Learning_Type': 'cleaned_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(cleanGoodSentences_test, emails_train_dtm_results)})
+        statsLock.release()
     
 def main():    
    
