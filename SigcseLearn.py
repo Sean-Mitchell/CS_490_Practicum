@@ -12,13 +12,16 @@ from sklearn.cross_validation import train_test_split
 from sklearn.feature_extraction import stop_words
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer, HashingVectorizer
 from sklearn.model_selection import KFold, StratifiedKFold
+from sklearn.naive_bayes import MultinomialNB
 from threading import Lock, Thread
 
 # Global variables for holding the percentages
 statsLock = Lock()
 statsArray = []
+naiveStatsArray = []
 queryTFIDF = []
 includeTFIDF = True
+isRunPerThread = False
 
 
 
@@ -260,8 +263,38 @@ def LoopThroughDocuments(filePath, folderName):
     for index, row in dataframeNoStopReset.iterrows():
         sentence = ''.join(ch for ch in row['CleanText'] if ch not in strng.punctuation)
         dataframeNoStopReset.loc[index,'CleanTextNoPunc'] = sentence
-        
-        
+    
+    
+    # #########################################################################################
+    #            Runs NaiveBayes and SVM per thread to see what performs best                 #
+    # #########################################################################################
+    if isRunPerThread:    
+    
+        #Create and assign the start of the return array the answer for the first accuracy score       
+        accuracy_Array = []
+        #initialize folds
+        kf = KFold(n_splits = 3, shuffle = True, random_state = 45)
+        goodSentences = dataframeReset[dataframeReset['FileName'].str.contains('summary')]
+        #The internet told me to split it like this
+        for train_index, test_index in kf.split(dataframeReset, dataframeReset):
+            #Create a new naive_bayes model for each test set and then put its accuracy in an array
+            nb = MultinomialNB()            
+            vect = TfidfVectorizer(ngram_range=(1, 2))
+            
+            # fit and transform training into vector matrix
+            emails_train_dtm = vect.fit_transform(dataframeReset['CleanText'].iloc[train_index].values)
+            emails_test_dtm = vect.transform(dataframeReset['CleanText'].iloc[test_index].values)
+            
+            #Fit and then compare the predictions
+            nb.fit(emails_train_dtm, goodSentences.iloc[train_index].values)
+            category_prediction_test = nb.predict(emails_test_dtm)
+            
+            if (metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results) > 0):
+                accuracy_Array.append(metrics.f1_score(goodSentences.iloc[test_index].values, category_prediction_test))
+                
+        if len(accuracy_Array) > 0:
+            naiveStatsArray.append({'ThreadName': folderName, 'F1_Score': sum(accuracy_Array)/float(len(accuracy_Array)), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, category_prediction_test)})
+    
     return dataframeReset, dataframeNoStopReset
     
     
@@ -353,12 +386,9 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
                         cleanedEmails.loc[index, 'CosineSimilarity'] = cosineSim
             
         
-        print(rawEmails['CosineSimilarity'].head())
         maxVal = max(rawEmails['CosineSimilarity'])
         for index, row in rawEmails.iterrows():
             rawEmails.loc[index, 'CosineSimilarity'] = row['CosineSimilarity'] / float(maxVal)
-			
-        print(rawEmails['CosineSimilarity'].head())
 		
         maxVal = max(cleanedEmails['CosineSimilarity'])
         for index, row in cleanedEmails.iterrows():
@@ -387,20 +417,42 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
     #print([i for i, x in enumerate(goodSentences_train) if x])
     return rawEmails_dtm, cleanEmails_dtm, summaryList
 
+# #####################################################
+#               Gets TFIDF for Naive Bayes
+# #####################################################    
+def GetTFIDF(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawDataFrame, rawEmails, rawSummaries):
+    # Create Y column (this is what we will be working to get using the SVM later on).  It's the unknown we want to solve for later on    
+    rawEmails.reset_index(drop = False) 
+    cleanedEmails.reset_index(drop = False)
+    summaryList = rawEmails['CleanText'].isin(rawSummaries['CleanText'])
+    cleanedSummaryList = cleanedEmails['CleanText'].isin(cleanedDataSummaries['CleanText'])
+        
+    #Assign Test and Train parts
+    rawEmailsNoPunc = rawEmails['CleanTextNoPunc']
+    cleanedEmailsNoPunc = cleanedEmails['CleanTextNoPunc']
+    
+    rawtfidfVect = TfidfVectorizer(ngram_range=(1, 2))
+    cleantfidfVect = TfidfVectorizer(ngram_range=(1, 2))
+    
+    #Create Series that the countVectorizer can use to create training and testing sets
+    rawtfidfVect.fit(rawEmails['CleanTextNoPunc'])
+    cleantfidfVect.fit(cleanedEmails['CleanTextNoPunc'])
+    tfid_rawEmails_dtm = rawtfidfVect.transform(rawEmailsNoPunc)
+    tfid_cleanEmails_dtm = cleantfidfVect.transform(cleanedEmailsNoPunc)
+        
+    # This prints off indices of true values
+    #print([i for i, x in enumerate(goodSentences_train) if x])
+    return tfid_rawEmails_dtm, tfid_cleanEmails_dtm, summaryList   
+    
+    
+    
+    
 #This should hold all the machine learning things
 def MachineLearningPart(isSingleRun, rawEmails_dtm, cleanEmails_dtm, goodSentences):       
     
     # #########################################################################################
     #                       Simplest SVM Set up.  Used for one off runs                       #
     # #########################################################################################
-    
-    '''
-    #Set up svc stuff (will modify into loop later)
-    clf = RandomForestClassifier(max_depth=2, random_state=12, n_jobs=-1)
-    clf.fit(emails_train_dtm, goodSentences_train)
-    
-    emails_results = clf.predict(emails_test_dtm)
-    '''
     threads = []
     if isSingleRun:
         rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails_dtm, goodSentences, random_state=10)
@@ -423,9 +475,9 @@ def MachineLearningPart(isSingleRun, rawEmails_dtm, cleanEmails_dtm, goodSentenc
     # #########################################################################################
         
     else:
-        for randomState in range(1, 11):
+        for randomState in range(1, 7):
             for cAmount in np.linspace(1, 100, 100):
-                    for gammaAmount in np.linspace(.01, .4, 100):  
+                    for gammaAmount in np.linspace(.1, .1, 1):  
                         threads.append(Thread(target=LearningThread, args=(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, cAmount, gammaAmount)))
                         threads[-1].start()
     
@@ -455,8 +507,7 @@ def MachineLearningPart(isSingleRun, rawEmails_dtm, cleanEmails_dtm, goodSentenc
     
     
     #initialize folds
-    kf = KFold(n_splits = 10, shuffle = True, random_state = 45)
-    print(kf.get_n_splits(emails_train, goodSentences_train))
+    kf = KFold(n_splits = 3, shuffle = True, random_state = 45)
     
     #The internet told me to split it like this
     for train_index, test_index in kf.split(emails, emails):
@@ -514,9 +565,10 @@ def LearningThread(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, c
     # ###########################################################
     #                       Raw Emails SVM                      #
     # ########################################################### 
+    
     clf = svm.SVC(C=cAmount, cache_size=5000, class_weight=None, coef0=0.0,
     decision_function_shape='ovr', degree=3, gamma=gammaAmount, kernel='rbf',
-    max_iter=-1, probability=False, random_state=1, shrinking=True,
+    max_iter=-1, probability=False, random_state=randomState, shrinking=True,
     tol=.001, verbose=False)
 
     clf.fit(rawEmails_train, goodSentences_train)    
@@ -536,7 +588,7 @@ def LearningThread(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, c
     # ########################################################### 
     clf = svm.SVC(C=cAmount, cache_size=5000, class_weight=None, coef0=0.0,
     decision_function_shape='ovr', degree=3, gamma=gammaAmount, kernel='rbf',
-    max_iter=-1, probability=False, random_state=1, shrinking=True,
+    max_iter=-1, probability=False, random_state=randomState, shrinking=True,
     tol=.001, verbose=False)
 
     clf.fit(cleanedEmails_train, cleanGoodSentences_train)    
@@ -556,16 +608,25 @@ def main():
     print(time.ctime(int(start_time)))
     
     # set up runType
-    if sys.argv[1].upper() == 'SINGLE':
+    if len(sys.argv) >= 2 and sys.argv[1].upper() == 'SINGLE':
         isSingleRun = True
     else:
         isSingleRun = False
         
     global includeTFIDF   
-    if sys.argv[2].upper() == 'I':
+    if len(sys.argv) >= 3 and sys.argv[2].upper() == 'I':
         includeTFIDF = True
     else:
         includeTFIDF = False
+        
+    
+    global isRunPerThread   
+    if len(sys.argv) >= 4 and sys.argv[3].upper() == 'T':
+        isRunPerThread = True
+    else:
+        isRunPerThread = False
+        
+    
     # ###########################################################
     #            Read in Files and create rawDataFrame          #
     # ###########################################################
@@ -593,15 +654,18 @@ def main():
     #            Modify Raw data into modified data vector            #
     #                     (will be normalized later)                  #
     # #################################################################    
-    rawEmails_dtm, cleanEmails_dtm, goodSentences = ModifyRawData(dfNoStop, dfNoStop[dfNoStop['FileName'].str.contains('summary')==False], dfNoStop[dfNoStop['FileName'].str.contains('summary')], 
-                        df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
-                        
-                        
-    MachineLearningPart(isSingleRun, rawEmails_dtm, cleanEmails_dtm, goodSentences)
-    # prints full head
-    # pd.set_option('display.max_colwidth', -1)
-    # print(df.head())  
     
+    if not isRunPerThread:
+        rawEmails_dtm, cleanEmails_dtm, goodSentences = ModifyRawData(dfNoStop, dfNoStop[dfNoStop['FileName'].str.contains('summary')==False], dfNoStop[dfNoStop['FileName'].str.contains('summary')], 
+                            df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
+                            
+                            
+        MachineLearningPart(isSingleRun, rawEmails_dtm, cleanEmails_dtm, goodSentences)
+        # prints full head
+        # pd.set_option('display.max_colwidth', -1)
+        # print(df.head())  
+    else:
+        naiveStatsArray.to_csv('Output/NaiveBayes/output_' + str(end_time) + '.csv', encoding='utf-8', index=False)
     locStatsArray = pd.DataFrame.from_dict(statsArray)
     end_time = time.time()
     print(time.ctime(int(end_time)))
@@ -609,9 +673,13 @@ def main():
     locStatsArray = locStatsArray.sort_values(['F1_Score', 'cAmount', 'gammaAmount', 'randState', 'Learning_Type'], ascending=[False, True, True, True, True])
     #locStatsArray = locStatsArray.groupby(['cAmount', 'gammaAmount', 'randState', 'Learning_Type'])
     #print(locStatsArray)
-    if includeTFIDF:
+    if includeTFIDF and not isRunPerThread:
         locStatsArray.to_csv('Output/outputWithTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
-    else:
+    elif not isRunPerThread:
         locStatsArray.to_csv('Output/outputNoTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
-    
+    elif not includeTFIDF:
+        locStatsArray.to_csv('Output/SVM/outputNoTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
+    else:
+        locStatsArray.to_csv('Output/SVM/outputWithTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
+        
 main()
