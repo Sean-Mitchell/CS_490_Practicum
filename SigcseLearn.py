@@ -269,7 +269,6 @@ def LoopThroughDocuments(filePath, folderName):
     #            Runs NaiveBayes and SVM per thread to see what performs best                 #
     # #########################################################################################
     if isRunPerThread:    
-    
         #Create and assign the start of the return array the answer for the first accuracy score       
         accuracy_Array = []
         #initialize folds
@@ -294,7 +293,20 @@ def LoopThroughDocuments(filePath, folderName):
                 
         if len(accuracy_Array) > 0:
             naiveStatsArray.append({'ThreadName': folderName, 'F1_Score': sum(accuracy_Array)/float(len(accuracy_Array)), 'Confusion_Matrix': metrics.confusion_matrix(summaryList.iloc[test_index].values, category_prediction_test)})
-    
+           
+        # ##########
+        # SVM
+        # ##########
+            
+        threads = []
+        for randomState in range(1, 7):
+            for cAmount in np.linspace(1, 100, 100):
+                for gammaAmount in np.linspace(.1, .1, 1):  
+                    threads.append(Thread(target=LearningThread, args=(dataframeReset[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
+            'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']], dataframeNoStopReset[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
+            'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']], summaryList, randomState, cAmount, gammaAmount)))
+                    threads[-1].start()
+                    
     return dataframeReset, dataframeNoStopReset
     
     
@@ -559,7 +571,6 @@ def MachineLearningPart(isSingleRun, rawEmails_dtm, cleanEmails_dtm, goodSentenc
 def LearningThread(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, cAmount, gammaAmount):
 
     rawEmails_train, rawEmails_test, goodSentences_train, goodSentences_test = train_test_split(rawEmails_dtm, goodSentences, random_state=randomState)
-    cleanedEmails_train, cleanedEmails_test, cleanGoodSentences_train, cleanGoodSentences_test = train_test_split(cleanEmails_dtm, goodSentences, random_state=randomState)
     
     
     # ###########################################################
@@ -585,22 +596,24 @@ def LearningThread(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, c
     
     # ###########################################################
     #                       Clean Emails SVM                    #
-    # ########################################################### 
-    clf = svm.SVC(C=cAmount, cache_size=5000, class_weight=None, coef0=0.0,
-    decision_function_shape='ovr', degree=3, gamma=gammaAmount, kernel='rbf',
-    max_iter=-1, probability=False, random_state=randomState, shrinking=True,
-    tol=.001, verbose=False)
+    # ###########################################################
+    if not isRunPerThread:
+        cleanedEmails_train, cleanedEmails_test, cleanGoodSentences_train, cleanGoodSentences_test = train_test_split(cleanEmails_dtm, goodSentences, random_state=randomState)
+        clf = svm.SVC(C=cAmount, cache_size=5000, class_weight=None, coef0=0.0,
+        decision_function_shape='ovr', degree=3, gamma=gammaAmount, kernel='rbf',
+        max_iter=-1, probability=False, random_state=randomState, shrinking=True,
+        tol=.001, verbose=False)
 
-    clf.fit(cleanedEmails_train, cleanGoodSentences_train)    
-    
-    emails_train_dtm_results = clf.predict(cleanedEmails_test)
-    
-    # Only take "good SVMS" based on f1 score
-    # Update to save all for CV comparison
-    if (metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results) > 0):
-        statsLock.acquire()
-        statsArray.append({'Learning_Type': 'cleaned_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(cleanGoodSentences_test, emails_train_dtm_results)})
-        statsLock.release()
+        clf.fit(cleanedEmails_train, cleanGoodSentences_train)    
+        
+        emails_train_dtm_results = clf.predict(cleanedEmails_test)
+        
+        # Only take "good SVMS" based on f1 score
+        # Update to save all for CV comparison
+        if (metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results) > 0):
+            statsLock.acquire()
+            statsArray.append({'Learning_Type': 'cleaned_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(cleanGoodSentences_test, emails_train_dtm_results)})
+            statsLock.release()
     
 def main():    
    
@@ -608,19 +621,21 @@ def main():
     print(time.ctime(int(start_time)))
     
     # set up runType
+    # Used for testing svm runs
     if len(sys.argv) >= 2 and sys.argv[1].upper() == 'SINGLE':
         isSingleRun = True
     else:
         isSingleRun = False
-        
+    
+    # Decides whether to include TFIDF in SVM
     global includeTFIDF   
     if len(sys.argv) >= 3 and sys.argv[2].upper() == 'I':
         includeTFIDF = True
     else:
         includeTFIDF = False
         
-    
-    global isRunPerThread   
+    # machine learns based on email thread vs using all threads as corpus
+    global isRunPerThread 
     if len(sys.argv) >= 4 and sys.argv[3].upper() == 'T':
         isRunPerThread = True
     else:
@@ -656,6 +671,7 @@ def main():
     # #################################################################    
     
     end_time = time.time()
+    print(isRunPerThread)
     if not isRunPerThread:
         rawEmails_dtm, cleanEmails_dtm, goodSentences = ModifyRawData(dfNoStop, dfNoStop[dfNoStop['FileName'].str.contains('summary')==False], dfNoStop[dfNoStop['FileName'].str.contains('summary')], 
                             df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
@@ -677,11 +693,11 @@ def main():
     #print(locStatsArray)
     if includeTFIDF and not isRunPerThread:
         locStatsArray.to_csv('Output/outputWithTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
-    elif not isRunPerThread:
+    elif not includeTFIDF and not isRunPerThread:
         locStatsArray.to_csv('Output/outputNoTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
-    '''elif not includeTFIDF:
+    elif not includeTFIDF:
         locStatsArray.to_csv('Output/SVM/outputNoTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
     else:
         locStatsArray.to_csv('Output/SVM/outputWithTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
-     '''   
+       
 main()
