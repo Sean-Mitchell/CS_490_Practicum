@@ -22,6 +22,7 @@ naiveStatsArray = []
 queryTFIDF = []
 includeTFIDF = True
 isRunPerThread = False
+foldersName = ''
 
 
 
@@ -268,7 +269,9 @@ def LoopThroughDocuments(filePath, folderName):
     # #########################################################################################
     #            Runs NaiveBayes and SVM per thread to see what performs best                 #
     # #########################################################################################
-    if isRunPerThread:    
+    if isRunPerThread:   
+        global foldersName
+        foldersName = folderName
         #Create and assign the start of the return array the answer for the first accuracy score       
         accuracy_Array = []
         #initialize folds
@@ -493,57 +496,7 @@ def MachineLearningPart(isSingleRun, rawEmails_dtm, cleanEmails_dtm, goodSentenc
                         threads.append(Thread(target=LearningThread, args=(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, cAmount, gammaAmount)))
                         threads[-1].start()
     
-    # '''
-    # #########################################################################################
-    #                                        NaiveBayes                                       #
-    # #########################################################################################
-    
-    '''
-    #Bring in NaiveBayes and apply it to the test set
-    #This is the actual machine learning part
-    nb = MultinomialNB()
-    nb.fit(emails_train_dtm, goodSentences_train)
-    category_prediction_test = nb.predict(emails_test_dtm)
-    
-    #print out what the categories are
-    print(goodSentences_test.unique())
-    
-    #print the accuracy is
-    print(metrics.accuracy_score(goodSentences_test, category_prediction_test))    
-    #This is a thing.  I am still uncertain how to use it
-    print(metrics.confusion_matrix(goodSentences_test, category_prediction_test))
-
-    #Create and assign the start of the return array the answer for the first accuracy score
-    accuracy_Array = []
-    accuracy_Array.append(metrics.accuracy_score(goodSentences_test, category_prediction_test))
-    
-    
-    #initialize folds
-    kf = KFold(n_splits = 3, shuffle = True, random_state = 45)
-    
-    #The internet told me to split it like this
-    for train_index, test_index in kf.split(emails, emails):
-        #Create a new naive_bayes model for each test set and then put its accuracy in an array
-        nb = MultinomialNB()
-        
-        #see how it got split up
-        #print (len(train_index), len(test_index))
-        
-        # fit and transform training into vector matrix
-        emails_train_dtm = vect.fit_transform(emails.iloc[train_index].values)
-        emails_test_dtm = vect.transform(emails.iloc[test_index].values)
-        
-        #Fit and then compare the predictions
-        nb.fit(emails_train_dtm, goodSentences.iloc[train_index].values)
-        category_prediction_test = nb.predict(emails_test_dtm)
-        
-        #Assign to return array and print
-        accuracy_Array.append(metrics.accuracy_score(goodSentences.iloc[test_index].values, category_prediction_test))
-        print(metrics.accuracy_score(goodSentences.iloc[test_index].values, category_prediction_test))    
-        print(metrics.confusion_matrix(goodSentences.iloc[test_index].values, category_prediction_test))
-    '''
-    
-    
+  
     # #########################################################################################
     #                           Coin flip and ZeroR for baselines                             #
     # ######################################################################################### 
@@ -590,7 +543,11 @@ def LearningThread(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, c
     # Update to save all for CV comparison
     if (metrics.f1_score(goodSentences_test, emails_train_dtm_results) > 0):
         statsLock.acquire()
-        statsArray.append({'Learning_Type': 'raw_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, emails_train_dtm_results)})
+        if isRunPerThread:
+            global foldersName
+            statsArray.append({'Learning_Type': foldersName, 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, emails_train_dtm_results)})
+        else:
+            statsArray.append({'Learning_Type': 'raw_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, emails_train_dtm_results)})
         statsLock.release()
     
     
@@ -685,7 +642,9 @@ def main():
         naiveDataFrame = pd.DataFrame.from_dict(naiveStatsArray)
         naiveDataFrame.to_csv('Output/NaiveBayes/output_' + str(end_time) + '.csv', encoding='utf-8', index=False)
 
-    locStatsArray = pd.DataFrame.from_dict(statsArray)
+    # This is to get rid of duplicates?
+    newstatsArray = list(statsArray)
+    locStatsArray = pd.DataFrame(newstatsArray)
     print(time.ctime(int(end_time)))
     print('Runtime is: ' + str(end_time - start_time) + ' seconds.')
     locStatsArray = locStatsArray.sort_values(['F1_Score', 'cAmount', 'gammaAmount', 'randState', 'Learning_Type'], ascending=[False, True, True, True, True])
