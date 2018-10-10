@@ -275,6 +275,7 @@ def LoopThroughDocuments(filePath, folderName):
         #initialize folds
         kf = KFold(n_splits = 3, shuffle = True, random_state = 45)
         goodSentences = dataframeReset[dataframeReset['FileName'].str.contains('summary')]
+        summaryList = dataframeReset['CleanText'].isin(goodSentences['CleanText'])
         #The internet told me to split it like this
         for train_index, test_index in kf.split(dataframeReset, dataframeReset):
             #Create a new naive_bayes model for each test set and then put its accuracy in an array
@@ -286,14 +287,13 @@ def LoopThroughDocuments(filePath, folderName):
             emails_test_dtm = vect.transform(dataframeReset['CleanText'].iloc[test_index].values)
             
             #Fit and then compare the predictions
-            nb.fit(emails_train_dtm, goodSentences.iloc[train_index].values)
+            nb.fit(emails_train_dtm, summaryList.iloc[train_index].values)
             category_prediction_test = nb.predict(emails_test_dtm)
             
-            if (metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results) > 0):
-                accuracy_Array.append(metrics.f1_score(goodSentences.iloc[test_index].values, category_prediction_test))
+            accuracy_Array.append(metrics.f1_score(summaryList.iloc[test_index].values, category_prediction_test))
                 
         if len(accuracy_Array) > 0:
-            naiveStatsArray.append({'ThreadName': folderName, 'F1_Score': sum(accuracy_Array)/float(len(accuracy_Array)), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, category_prediction_test)})
+            naiveStatsArray.append({'ThreadName': folderName, 'F1_Score': sum(accuracy_Array)/float(len(accuracy_Array)), 'Confusion_Matrix': metrics.confusion_matrix(summaryList.iloc[test_index].values, category_prediction_test)})
     
     return dataframeReset, dataframeNoStopReset
     
@@ -655,6 +655,7 @@ def main():
     #                     (will be normalized later)                  #
     # #################################################################    
     
+    end_time = time.time()
     if not isRunPerThread:
         rawEmails_dtm, cleanEmails_dtm, goodSentences = ModifyRawData(dfNoStop, dfNoStop[dfNoStop['FileName'].str.contains('summary')==False], dfNoStop[dfNoStop['FileName'].str.contains('summary')], 
                             df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
@@ -665,9 +666,10 @@ def main():
         # pd.set_option('display.max_colwidth', -1)
         # print(df.head())  
     else:
-        naiveStatsArray.to_csv('Output/NaiveBayes/output_' + str(end_time) + '.csv', encoding='utf-8', index=False)
+        naiveDataFrame = pd.DataFrame.from_dict(naiveStatsArray)
+        naiveDataFrame.to_csv('Output/NaiveBayes/output_' + str(end_time) + '.csv', encoding='utf-8', index=False)
+
     locStatsArray = pd.DataFrame.from_dict(statsArray)
-    end_time = time.time()
     print(time.ctime(int(end_time)))
     print('Runtime is: ' + str(end_time - start_time) + ' seconds.')
     locStatsArray = locStatsArray.sort_values(['F1_Score', 'cAmount', 'gammaAmount', 'randState', 'Learning_Type'], ascending=[False, True, True, True, True])
@@ -677,9 +679,9 @@ def main():
         locStatsArray.to_csv('Output/outputWithTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
     elif not isRunPerThread:
         locStatsArray.to_csv('Output/outputNoTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
-    elif not includeTFIDF:
+    '''elif not includeTFIDF:
         locStatsArray.to_csv('Output/SVM/outputNoTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
     else:
         locStatsArray.to_csv('Output/SVM/outputWithTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
-        
+     '''   
 main()
