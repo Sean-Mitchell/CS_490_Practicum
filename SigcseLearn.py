@@ -272,11 +272,33 @@ def LoopThroughDocuments(filePath, folderName):
     if isRunPerThread:   
         global foldersName
         foldersName = folderName
+        
+        vect = TfidfVectorizer(ngram_range=(1, 2))        
+        vect.fit(dataframeReset['CleanText'])
+        rawVector = vect.transform(np.array([re.sub('_', r' ', folderName)]))
+        tfidfDataFrame = vect.fit_transform(dataframeReset['CleanText'])
+        
+        # Raw Emails
+        for index, row in dataframeReset.iterrows():
+            
+            cosineSim = metrics.pairwise.cosine_similarity(tfidfDataFrame[index], rawVector)[0][0]
+            if cosineSim != 0:
+                dataframeReset.loc[index, 'CosineSimilarity'] = cosineSim
+                    
+        maxVal = max(dataframeReset['CosineSimilarity'])
+        
+        if maxVal != 0:
+            for index, row in dataframeReset.iterrows():
+                dataframeReset.loc[index, 'CosineSimilarity'] = row['CosineSimilarity'] / float(maxVal)
+		
         #Create and assign the start of the return array the answer for the first accuracy score       
         accuracy_Array = []
         #initialize folds
-        kf = KFold(n_splits = 3, shuffle = True, random_state = 45)
+        kf = KFold(n_splits = 3, shuffle = True, random_state = 7)
         goodSentences = dataframeReset[dataframeReset['FileName'].str.contains('summary')]
+        
+        goodSentences.to_csv('Output/GoodSentences/' + folderName + '.csv', encoding='utf-8', index=False)
+        
         summaryList = dataframeReset['CleanText'].isin(goodSentences['CleanText'])
         #The internet told me to split it like this
         for train_index, test_index in kf.split(dataframeReset, dataframeReset):
@@ -285,8 +307,8 @@ def LoopThroughDocuments(filePath, folderName):
             vect = TfidfVectorizer(ngram_range=(1, 2))
             
             # fit and transform training into vector matrix
-            emails_train_dtm = vect.fit_transform(dataframeReset['CleanText'].iloc[train_index].values)
-            emails_test_dtm = vect.transform(dataframeReset['CleanText'].iloc[test_index].values)
+            emails_train_dtm = vect.fit_transform(dataframeReset['CleanTextNoPunc'].iloc[train_index].values)
+            emails_test_dtm = vect.transform(dataframeReset['CleanTextNoPunc'].iloc[test_index].values)
             
             #Fit and then compare the predictions
             nb.fit(emails_train_dtm, summaryList.iloc[train_index].values)
@@ -303,11 +325,10 @@ def LoopThroughDocuments(filePath, folderName):
             
         threads = []
         for randomState in range(1, 7):
-            for cAmount in np.linspace(1, 100, 100):
-                for gammaAmount in np.linspace(.1, .1, 1):  
-                    threads.append(Thread(target=LearningThread, args=(dataframeReset[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-            'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']], dataframeNoStopReset[['FirstSentence', 'SecondSentence', 'ThirdSentence', 'FourthSentence', 'FifthSentence',
-            'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']], summaryList, randomState, cAmount, gammaAmount)))
+            for cAmount in np.linspace(1, 15, 15):
+                for gammaAmount in np.linspace(.01, .1, 10):  
+                    threads.append(Thread(target=LearningThread, args=(dataframeReset[['TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']], 
+                    dataframeNoStopReset[['TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']].astype(float), summaryList, randomState, cAmount, gammaAmount)))
                     threads[-1].start()
                     
     return dataframeReset, dataframeNoStopReset
@@ -628,7 +649,6 @@ def main():
     # #################################################################    
     
     end_time = time.time()
-    print(isRunPerThread)
     if not isRunPerThread:
         rawEmails_dtm, cleanEmails_dtm, goodSentences = ModifyRawData(dfNoStop, dfNoStop[dfNoStop['FileName'].str.contains('summary')==False], dfNoStop[dfNoStop['FileName'].str.contains('summary')], 
                             df,  df[df['FileName'].str.contains('summary')==False], df[df['FileName'].str.contains('summary')])
