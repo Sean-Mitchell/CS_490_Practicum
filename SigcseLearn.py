@@ -18,8 +18,8 @@ from threading import Lock, Thread
 # Global variables for holding the percentages
 statsLock = Lock()
 statsArray = []
-naiveStatsArray = []
 queryTFIDF = []
+naiveStatsArray = [] 
 includeTFIDF = True
 isRunPerThread = False
 foldersName = ''
@@ -269,9 +269,22 @@ def LoopThroughDocuments(filePath, folderName):
     # #########################################################################################
     #            Runs NaiveBayes and SVM per thread to see what performs best                 #
     # #########################################################################################
-    if isRunPerThread:   
+    if isRunPerThread: 
         global foldersName
         foldersName = folderName
+        isSummarySentence = np.zeros(len(dataframeReset))
+        
+        
+        goodSentences = dataframeReset[dataframeReset['FileName'].str.contains('summary')]
+        summarySentenceList = dataframeReset['CleanText'].isin(goodSentences['CleanText'])
+        # #######
+        #  Set up Summary Sentence Array
+        # #######
+        
+        for index, row in dataframeReset.iterrows():
+            print(row['CleanText'])
+            if (row['CleanText'] in summarySentenceList):
+                isSummarySentence[index] = 1
         
         vect = TfidfVectorizer(ngram_range=(1, 2))        
         vect.fit(dataframeReset['CleanText'])
@@ -295,11 +308,8 @@ def LoopThroughDocuments(filePath, folderName):
         accuracy_Array = []
         #initialize folds
         kf = KFold(n_splits = 3, shuffle = True, random_state = 7)
-        goodSentences = dataframeReset[dataframeReset['FileName'].str.contains('summary')]
-        
-        goodSentences.to_csv('Output/GoodSentences/' + folderName + '.csv', encoding='utf-8', index=False)
-        
-        summaryList = dataframeReset['CleanText'].isin(goodSentences['CleanText'])
+          
+        splitCounter = 1
         #The internet told me to split it like this
         for train_index, test_index in kf.split(dataframeReset, dataframeReset):
             #Create a new naive_bayes model for each test set and then put its accuracy in an array
@@ -311,25 +321,28 @@ def LoopThroughDocuments(filePath, folderName):
             emails_test_dtm = vect.transform(dataframeReset['CleanTextNoPunc'].iloc[test_index].values)
             
             #Fit and then compare the predictions
-            nb.fit(emails_train_dtm, summaryList.iloc[train_index].values)
+            nb.fit(emails_train_dtm, isSummarySentence[train_index])
             category_prediction_test = nb.predict(emails_test_dtm)
             
-            accuracy_Array.append(metrics.f1_score(summaryList.iloc[test_index].values, category_prediction_test))
+            accuracy_Array.append(metrics.f1_score(isSummarySentence[test_index], category_prediction_test))
+            
+            emails_train_dtm = hstack([emails_test_dtm, list(category_prediction_test)])
+            dataframeReset['CleanTextNoPunc'].iloc[train_index].to_csv('Output/TFIDF/' + folderName + str(splitCounter) + '.csv', encoding='utf-8', index=False)
+            splitCounter += 1
                 
         if len(accuracy_Array) > 0:
-            naiveStatsArray.append({'ThreadName': folderName, 'F1_Score': sum(accuracy_Array)/float(len(accuracy_Array)), 'Confusion_Matrix': metrics.confusion_matrix(summaryList.iloc[test_index].values, category_prediction_test)})
+            naiveStatsArray.append({'ThreadName': folderName, 'F1_Score': sum(accuracy_Array)/float(len(accuracy_Array)), 'Confusion_Matrix': metrics.confusion_matrix(isSummarySentence[test_index], category_prediction_test)})
            
         # ##########
         # SVM
         # ##########
             
         threads = []
-        for randomState in range(1, 7):
-            for cAmount in np.linspace(1, 15, 15):
-                for gammaAmount in np.linspace(.01, .1, 10):  
-                    threads.append(Thread(target=LearningThread, args=(dataframeReset[['TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']], 
-                    dataframeNoStopReset[['TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']].astype(float), summaryList, randomState, cAmount, gammaAmount)))
-                    threads[-1].start()
+        for cAmount in np.linspace(1, 15, 15):
+            for gammaAmount in np.linspace(.01, .1, 10):  
+                threads.append(Thread(target=SingleLearningThread, args=(dataframeReset[['TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']], 
+                dataframeNoStopReset[['TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']].astype(float), cAmount, gammaAmount)))
+                threads[-1].start()
                     
     return dataframeReset, dataframeNoStopReset
     
@@ -478,10 +491,7 @@ def GetTFIDF(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawDataFrame
         
     # This prints off indices of true values
     #print([i for i, x in enumerate(goodSentences_train) if x])
-    return tfid_rawEmails_dtm, tfid_cleanEmails_dtm, summaryList   
-    
-    
-    
+    return tfid_rawEmails_dtm, tfid_cleanEmails_dtm, summaryList      
     
 #This should hold all the machine learning things
 def MachineLearningPart(isSingleRun, rawEmails_dtm, cleanEmails_dtm, goodSentences):       
@@ -592,7 +602,61 @@ def LearningThread(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, c
             statsLock.acquire()
             statsArray.append({'Learning_Type': 'cleaned_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(cleanGoodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(cleanGoodSentences_test, emails_train_dtm_results)})
             statsLock.release()
+ 
+def SingleLearningThread(rawEmails_dtm, cleanEmails_dtm, cAmount, gammaAmount):
+
+    accuracy_Array = []
+    #initialize folds
+    kf = KFold(n_splits = 3, shuffle = True, random_state = 7)
+    #goodSentences = rawEmails_dtm[rawEmails_dtm['FileName'].str.contains('summary')]
+    #print(goodSentences)
     
+    #The internet told me to split it like this
+    for train_index, test_index in kf.split(rawEmails_dtm, rawEmails_dtm):
+        #Create a new naive_bayes model for each test set and then put its accuracy in an array
+    
+        clf = svm.SVC(C=cAmount, cache_size=5000, class_weight=None, coef0=0.0,
+        decision_function_shape='ovr', degree=3, gamma=gammaAmount, kernel='rbf',
+        max_iter=-1, probability=False, shrinking=True,
+        tol=.001, verbose=False)
+        
+        # fit and transform training into vector matrix
+        emails_train_dtm = vect.fit_transform(rawEmails_dtm['CleanTextNoPunc'].iloc[train_index].values)
+        emails_test_dtm = vect.transform(rawEmails_dtm['CleanTextNoPunc'].iloc[test_index].values)
+        
+        #Fit and then compare the predictions
+        nb.fit(emails_train_dtm, summaryList.iloc[train_index].values)
+        category_prediction_test = nb.predict(emails_test_dtm)
+        
+        accuracy_Array.append(metrics.f1_score(summaryList.iloc[test_index].values, category_prediction_test))
+            
+    if len(accuracy_Array) > 0:
+        naiveStatsArray.append({'ThreadName': folderName, 'F1_Score': sum(accuracy_Array)/float(len(accuracy_Array)), 'Confusion_Matrix': metrics.confusion_matrix(summaryList.iloc[test_index].values, category_prediction_test)})
+           
+    # ###########################################################
+    #                       Raw Emails SVM                      #
+    # ########################################################### 
+    
+    clf = svm.SVC(C=cAmount, cache_size=5000, class_weight=None, coef0=0.0,
+    decision_function_shape='ovr', degree=3, gamma=gammaAmount, kernel='rbf',
+    max_iter=-1, probability=False, shrinking=True,
+    tol=.001, verbose=False)
+
+    clf.fit(rawEmails_train, goodSentences_train)    
+    
+    emails_train_dtm_results = clf.predict(rawEmails_test)
+    
+    # Only take "good SVMS" based on f1 score
+    # Update to save all for CV comparison
+    if (metrics.f1_score(goodSentences_test, emails_train_dtm_results) > 0):
+        statsLock.acquire()
+        if isRunPerThread:
+            global foldersName
+            statsArray.append({'Learning_Type': foldersName, 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, emails_train_dtm_results)})
+        else:
+            statsArray.append({'Learning_Type': 'raw_SVM', 'cAmount': cAmount, 'gammaAmount': gammaAmount, 'randState': randomState, 'F1_Score': metrics.f1_score(goodSentences_test, emails_train_dtm_results), 'Confusion_Matrix': metrics.confusion_matrix(goodSentences_test, emails_train_dtm_results)})
+        statsLock.release()
+ 
 def main():    
    
     start_time = time.time()
