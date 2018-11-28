@@ -256,13 +256,14 @@ def LoopThroughDocuments(filePath, folderName):
     
     #Remove punctuation from all sentences
     dataframeReset = dataframe.reset_index(drop = False)
+    exclude = set(strng.punctuation)
     for index, row in dataframeReset.iterrows():
-        sentence = ''.join(ch for ch in row['CleanText'] if ch not in strng.punctuation)
+        sentence = ''.join(ch for ch in row['CleanText'] if ch not in exclude)
         dataframeReset.loc[index,'CleanTextNoPunc'] = sentence
         
     dataframeNoStopReset = dataframeNoStop.reset_index(drop = False)
     for index, row in dataframeNoStopReset.iterrows():
-        sentence = ''.join(ch for ch in row['CleanText'] if ch not in strng.punctuation)
+        sentence = ''.join(ch for ch in row['CleanText'] if ch not in exclude)
         dataframeNoStopReset.loc[index,'CleanTextNoPunc'] = sentence
     
     
@@ -284,7 +285,7 @@ def LoopThroughDocuments(filePath, folderName):
         
         vect = TfidfVectorizer(ngram_range=(1, 2))        
         vect.fit(dataframeReset['CleanText'])
-        rawVector = vect.transform(np.array([re.sub('_', r' ', folderName)]))
+        rawVector = vect.transform(np.array([re.sub('_', r' ', folderName.lower())]))
         tfidfDataFrame = vect.fit_transform(dataframeReset['CleanText'])
         
         # Raw Emails
@@ -325,7 +326,7 @@ def LoopThroughDocuments(filePath, folderName):
             outputCSVDataframe = pd.concat([pd.SparseDataFrame(emails_test_dtm).reset_index(drop=True), pd.DataFrame(list(summarySentenceList[test_index].astype(int)), columns=['Actual']).reset_index(drop=True),
                     pd.DataFrame(category_prediction_test.astype(int), columns=['Predicted'])], axis=1)
                     
-            outputCSVDataframe.to_csv('Output/TFIDF/' + folderName + str(splitCounter) + '.csv', encoding='utf-8', index=False)
+            outputCSVDataframe.to_csv('Output/TFIDF/UK_' + folderName + str(splitCounter) + '.csv', encoding='utf-8', index=False)
             splitCounter += 1
                 
         if len(accuracy_Array) > 0:
@@ -338,7 +339,7 @@ def LoopThroughDocuments(filePath, folderName):
         threads = []
         for cAmount in np.linspace(1, 15, 15):
             for gammaAmount in np.linspace(.01, .1, 10):  
-                threads.append(Thread(target=SingleLearningThread, args=(folderName, dataframeReset[['TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']].astype(float), 
+                threads.append(Thread(target=SingleLearningThread, args=(folderName, dataframeReset[['CleanTextNoPunc', 'TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']], 
                 summarySentenceList, cAmount, gammaAmount)))
                 threads[-1].start()
                     
@@ -399,8 +400,8 @@ def ModifyRawData(cleanedDataFrame, cleanedEmails, cleanedDataSummaries, rawData
         cleanedEmails = cleanedEmails.reset_index(drop = False)
         
         for folder in queryTFIDF:
-            rawVector = rawtfidfVect.transform(np.array([re.sub('_', r' ', folder)]))
-            cleanVector = cleantfidfVect.transform(np.array([re.sub('_', r' ', folder)]))
+            rawVector = rawtfidfVect.transform(np.array([re.sub('_', r' ', folder.lower())]))
+            cleanVector = cleantfidfVect.transform(np.array([re.sub('_', r' ', folder.lower())]))
             
             # Raw Emails
             folderCosineComparisonFinished = False
@@ -603,13 +604,16 @@ def LearningThread(rawEmails_dtm, cleanEmails_dtm, goodSentences, randomState, c
  
 def SingleLearningThread(folderName, rawEmails_dtm, summarySentenceList, cAmount, gammaAmount):
 
+    # Remove the CleanText as we only want that when printing out the info at the end
+    rawEmails = rawEmails_dtm[['TopOneSentence', 'TopTwoSentence', 'TopThreeSentence', 'TopFourSentence', 'TopFiveSentence','SentenceLengthBeforeStop', 'CosineSimilarity']].astype(float)
+    
     accuracy_Array = []
     #initialize folds
     kf = KFold(n_splits = 3, shuffle = True, random_state = 7)
     splitCounter = 1
     
     #The internet told me to split it like this
-    for train_index, test_index in kf.split(rawEmails_dtm, rawEmails_dtm):
+    for train_index, test_index in kf.split(rawEmails, rawEmails):
         #Create a new naive_bayes model for each test set and then put its accuracy in an array
     
         clf = svm.SVC(C=cAmount, cache_size=5000, class_weight=None, coef0=0.0,
@@ -618,15 +622,15 @@ def SingleLearningThread(folderName, rawEmails_dtm, summarySentenceList, cAmount
         tol=.001, verbose=False)
         
         # fit and transform training into vector matrix
-        clf.fit(rawEmails_dtm.iloc[train_index].values, summarySentenceList[train_index]) 
+        clf.fit(rawEmails.iloc[train_index].values, summarySentenceList[train_index]) 
         
-        category_prediction_test = clf.predict(rawEmails_dtm.iloc[test_index].values)
+        category_prediction_test = clf.predict(rawEmails.iloc[test_index].values)
         
         accuracy_Array.append(metrics.f1_score(summarySentenceList[test_index], category_prediction_test)) 
         outputCSVDataframe = pd.concat([pd.SparseDataFrame(rawEmails_dtm.iloc[test_index]).reset_index(drop=True), pd.DataFrame(list(summarySentenceList[test_index].astype(int)), columns=['Actual']).reset_index(drop=True),
                 pd.DataFrame(category_prediction_test.astype(int), columns=['Predicted'])], axis=1)
                     
-        outputCSVDataframe.to_csv('Output/SVM/' + folderName + str(splitCounter) + '.csv', encoding='utf-8', index=False)
+        outputCSVDataframe.to_csv('Output/SVM/UK_' + folderName + str(splitCounter) + '.csv', encoding='utf-8', index=False)
         splitCounter += 1
  
             
@@ -724,6 +728,6 @@ def main():
     elif not includeTFIDF:
         locStatsArray.to_csv('Output/SVM/outputNoTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
     else:
-        locStatsArray.to_csv('Output/SVM/outputWithTFIDF_' + str(end_time) + '.csv', encoding='utf-8', index=False)
+        locStatsArray.to_csv('Output/SVM/outputUpdatedKeywords_' + str(end_time) + '.csv', encoding='utf-8', index=False)
        
 main()
